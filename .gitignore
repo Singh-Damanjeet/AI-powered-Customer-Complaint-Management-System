@@ -1,0 +1,27 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+.coverage
+htmlcov/
+
+# Node / Vite
+node_modules/
+frontend/dist/
+frontend/.vite/
+npm-debug.log*
+
+# Local database and editor files
+*.sqlite3
+.DS_Store
+*.log

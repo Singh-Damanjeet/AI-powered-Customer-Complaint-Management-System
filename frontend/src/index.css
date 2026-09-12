@@ -1,0 +1,61 @@
+:root {
+  font-family: 'Inter', sans-serif;
+  color: #172033;
+  background: #f5f7fb;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.foundation-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 2rem;
+}
+
+.foundation-card {
+  width: min(100%, 38rem);
+  padding: 3rem;
+  border: 1px solid #dfe5ef;
+  border-radius: 1.25rem;
+  background: #ffffff;
+  box-shadow: 0 1.5rem 4rem rgb(23 32 51 / 8%);
+}
+
+.eyebrow {
+  color: #5168a8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+h1 {
+  margin: 0.75rem 0 1rem;
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  line-height: 1.05;
+}
+
+p {
+  max-width: 32rem;
+  margin: 0;
+  color: #5c667a;
+  font-size: 1rem;
+  line-height: 1.7;
+}
