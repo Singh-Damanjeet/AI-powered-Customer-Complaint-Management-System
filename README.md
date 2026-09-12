@@ -2,7 +2,7 @@
 
 Foundation for an AI-powered customer complaint management system for pharmaceutical API/FDF manufacturing.
 
-This repository currently contains the no-Docker Phase 0 foundation, Phase 1 domain contracts, and Phase 2 persistence/API layer. AI calls and complaint editing workflows are intentionally not implemented yet.
+This repository currently contains the no-Docker Phase 0 foundation, Phase 1 domain contracts, Phase 2 persistence/API layer, and Phase 3 Groq structured-output service. Complaint creation, editing, document extraction, and risk-assessment workflows are intentionally not wired in yet.
 
 ## Architecture
 
@@ -36,7 +36,7 @@ pharma-complaint-ai/
    DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:5432/DATABASE_NAME
    ```
 
-   For managed providers that require TLS, append `?sslmode=require` to the URL. Keep `GROQ_API_KEY` and `GROQ_MODEL` empty until the AI phase.
+   For managed providers that require TLS, append `?sslmode=require` to the URL. Configure `GROQ_API_KEY` and `GROQ_MODEL` when using the Phase 3 service; never commit the resulting `.env` file.
 
 2. Install backend dependencies, run migrations, and start FastAPI:
 
@@ -85,7 +85,7 @@ The health check executes `SELECT 1` against `DATABASE_URL`. If the database is 
 - SQLAlchemy session foundation and Alembic configuration.
 - Managed or locally installed PostgreSQL connection through `DATABASE_URL`.
 - Database-backed health check at `/api/health`.
-- LangGraph and Groq SDK dependencies ready for a later phase.
+- LangGraph and Groq SDK dependencies available for the structured AI service and later workflows.
 
 ## Phase 1 scope
 
@@ -105,5 +105,13 @@ At the end of Phase 1, no AI calls, document extraction, risk reassessment execu
 - Repository/service tests covering reload from a new database session.
 
 The initial assessment uses `Unknown` classifications and `not_assessed` as its model name until a later phase adds AI invocation.
+
+## Phase 3 scope
+
+- Environment-backed, dependency-injected Groq service for JSON Schema responses.
+- Pydantic validation of every structured response returned by Groq.
+- Provider, configuration, empty-response, JSON, and schema-validation error handling.
+- The existing complaint APIs, migrations, and persistence behavior remain unchanged.
+- LangGraph orchestration and complaint log/edit/document tools are reserved for Phase 4.
 
 Docker is not required or included in this repository. There is no `docker-compose.yml` or `Dockerfile`.
