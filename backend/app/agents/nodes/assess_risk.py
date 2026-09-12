@@ -17,6 +17,11 @@ def _risk_source_text(state: ComplaintGraphState, complaint: ComplaintData) -> s
     original_text = state.get("user_message")
     if not isinstance(original_text, str) or not original_text.strip():
         raise ValueError("user_message must be a non-empty string.")
+    if state.get("intent") == "DOCUMENT_COMPLAINT":
+        document_text = state.get("document_text")
+        if not isinstance(document_text, str) or not document_text.strip():
+            raise ValueError("document_text must be available for document risk assessment.")
+        return document_text
     if state.get("intent") != "EDIT_COMPLAINT":
         return original_text
 

@@ -4,14 +4,20 @@ from __future__ import annotations
 
 import inspect
 import logging
+from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
 
 from app.agents.graph import build_complaint_graph
-from app.agents.state import initial_complaint_graph_state
+from app.agents.state import ComplaintGraphState, initial_complaint_graph_state
 from app.schemas.complaint import ComplaintAgentResponse, ComplaintData, RiskAssessment
 from app.services.ai_errors import AIResponseValidationError
+from app.services.document_parser import (
+    DocumentParserConfigurationError,
+    DocumentParserError,
+    DocumentParserService,
+)
 from app.services.groq_service import (
     GroqConfigurationError,
     GroqProviderError,
@@ -64,40 +70,39 @@ class ComplaintGraphService:
         extraction_service: Any | None = None,
         risk_service: Any | None = None,
         edit_service: Any | None = None,
+        document_parser_service: Any | None = None,
+        document_complaint_service: Any | None = None,
         groq_service: Any | None = None,
         legacy_log_service: Any | None = None,
     ) -> None:
+        resolved_parser = document_parser_service
+        if resolved_parser is None and document_complaint_service is not None:
+            resolved_parser = getattr(document_complaint_service, "parser", None)
+            if resolved_parser is None and hasattr(
+                document_complaint_service,
+                "parse",
+            ):
+                resolved_parser = document_complaint_service
+        self.document_parser_service = (
+            resolved_parser
+            if resolved_parser is not None
+            else DocumentParserService()
+        )
         self.graph = graph if graph is not None else build_complaint_graph(
             extraction_service=extraction_service,
             risk_service=risk_service,
             edit_service=edit_service,
+            document_parser_service=self.document_parser_service,
             groq_service=groq_service,
             legacy_log_service=legacy_log_service,
         )
 
-    async def run(
+    async def _invoke_state(
         self,
-        user_message: str,
-        current_complaint: ComplaintData | None = None,
+        initial_state: ComplaintGraphState,
     ) -> ComplaintAgentResponse:
-        """Invoke the graph and validate its final response envelope."""
+        """Invoke one serializable graph state and validate its response."""
 
-        if not isinstance(user_message, str) or not user_message.strip():
-            raise ValueError("user_message must be a non-empty string.")
-
-        validated_current = (
-            ComplaintData.model_validate(current_complaint)
-            if current_complaint is not None
-            else None
-        )
-        initial_state = initial_complaint_graph_state(
-            user_message.strip(),
-            complaint=(
-                validated_current.model_dump(mode="json")
-                if validated_current is not None
-                else None
-            ),
-        )
         logger.info("Complaint graph started")
         try:
             invoke_result = self.graph.ainvoke(initial_state)
@@ -111,6 +116,8 @@ class ComplaintGraphService:
             # typed boundary for custom graph implementations as well.
             raise
         except AIResponseValidationError:
+            raise
+        except (DocumentParserError, DocumentParserConfigurationError):
             raise
         except GroqServiceError:
             raise
@@ -181,6 +188,55 @@ class ComplaintGraphService:
 
         logger.info("Complaint graph completed")
         return response
+
+    async def run(
+        self,
+        user_message: str,
+        current_complaint: ComplaintData | None = None,
+    ) -> ComplaintAgentResponse:
+        """Invoke the text/edit graph workflow."""
+
+        if not isinstance(user_message, str) or not user_message.strip():
+            raise ValueError("user_message must be a non-empty string.")
+
+        validated_current = (
+            ComplaintData.model_validate(current_complaint)
+            if current_complaint is not None
+            else None
+        )
+        initial_state = initial_complaint_graph_state(
+            user_message.strip(),
+            complaint=(
+                validated_current.model_dump(mode="json")
+                if validated_current is not None
+                else None
+            ),
+        )
+        return await self._invoke_state(initial_state)
+
+    async def run_document(
+        self,
+        filename: str,
+        content: bytes,
+    ) -> ComplaintAgentResponse:
+        """Parse and process one uploaded document through the graph."""
+
+        safe_filename = (
+            Path(filename.strip()).name
+            if isinstance(filename, str)
+            else ""
+        )
+        transient_content = (
+            bytes(content)
+            if isinstance(content, (bytes, bytearray, memoryview))
+            else None
+        )
+        initial_state = initial_complaint_graph_state(
+            "Process uploaded complaint document",
+            document_filename=safe_filename,
+            document_content=transient_content,
+        )
+        return await self._invoke_state(initial_state)
 
     async def process(
         self,

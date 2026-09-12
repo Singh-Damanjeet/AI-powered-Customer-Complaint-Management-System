@@ -50,7 +50,13 @@ def generate_response_node(state: ComplaintGraphState) -> dict[str, Any]:
         ):
             raise ValueError("changed_fields must be a list of strings.")
 
-        if state.get("intent") == "EDIT_COMPLAINT":
+        if state.get("intent") == "DOCUMENT_COMPLAINT":
+            assistant_message = (
+                "I extracted the complaint information from the uploaded document "
+                "and completed a preliminary AI risk assessment. QA review is "
+                "required."
+            )
+        elif state.get("intent") == "EDIT_COMPLAINT":
             outcome = state.get("edit_outcome")
             if outcome == "AMBIGUOUS":
                 assistant_message = state.get("edit_notice") or (

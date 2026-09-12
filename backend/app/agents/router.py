@@ -146,6 +146,20 @@ def route_by_intent(state: ComplaintGraphState) -> str:
             return "unsupported_for_now"
         return "edit_complaint"
     if intent is ComplaintIntent.DOCUMENT_COMPLAINT:
+        metadata = state.get("metadata")
+        has_document_input = (
+            "document_filename" in state
+            or "document_content" in state
+            or (
+                isinstance(metadata, dict)
+                and bool(metadata.get("document_filename"))
+            )
+        )
+        # Preserve the Phase 5 terminal behavior for callers that only put
+        # arbitrary document text in state. Real document requests carry a
+        # filename (or transient content) and use the active parser branch.
+        if has_document_input:
+            return "extract_document"
         return "unsupported_for_now"
     return "unsupported_request"
 
@@ -158,6 +172,18 @@ def route_after_log(state: ComplaintGraphState) -> str:
 
 def route_after_edit(state: ComplaintGraphState) -> str:
     """Stop after edit/merge failures; otherwise validate updated state."""
+
+    return "workflow_error" if state.get("errors") else "validate_complaint"
+
+
+def route_after_document(state: ComplaintGraphState) -> str:
+    """Continue to shared complaint extraction after parsing document text."""
+
+    return "workflow_error" if state.get("errors") else "extract_complaint_from_document"
+
+
+def route_after_document_extraction(state: ComplaintGraphState) -> str:
+    """Continue to complaint validation after document fact extraction."""
 
     return "workflow_error" if state.get("errors") else "validate_complaint"
 
@@ -188,6 +214,8 @@ __all__ = [
     "classify_intent",
     "classify_intent_value",
     "route_after_assess",
+    "route_after_document",
+    "route_after_document_extraction",
     "route_after_edit",
     "route_after_log",
     "route_after_validate",

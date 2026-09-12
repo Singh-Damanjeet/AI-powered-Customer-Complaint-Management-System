@@ -8,6 +8,17 @@ from app.services.complaint_service import (
 )
 from app.services.ai_errors import AIResponseValidationError
 from app.services.complaint_extraction_service import ComplaintExtractionService
+from app.services.document_complaint_service import DocumentComplaintService
+from app.services.document_parser import (
+    CorruptDocumentError,
+    DocumentParserConfigurationError,
+    DocumentParserError,
+    DocumentParserService,
+    DocumentTooLargeError,
+    EmptyDocumentError,
+    NoExtractableTextError,
+    UnsupportedDocumentTypeError,
+)
 from app.services.groq_service import (
     GroqConfigurationError,
     GroqProviderError,
@@ -25,6 +36,14 @@ __all__ = [
     "ComplaintService",
     "AIResponseValidationError",
     "ComplaintExtractionService",
+    "DocumentComplaintService",
+    "DocumentParserConfigurationError",
+    "DocumentParserError",
+    "DocumentParserService",
+    "DocumentTooLargeError",
+    "EmptyDocumentError",
+    "NoExtractableTextError",
+    "UnsupportedDocumentTypeError",
     "GroqConfigurationError",
     "GroqProviderError",
     "GroqResponseError",

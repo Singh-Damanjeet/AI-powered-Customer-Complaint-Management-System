@@ -1,6 +1,8 @@
 """AI-assisted complaint operations."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from collections.abc import Awaitable, Callable
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from app.services.complaint_graph_service import (
     ComplaintGraphService,
@@ -12,6 +14,16 @@ from app.schemas.ai import LogComplaintRequest
 from app.schemas.complaint import ComplaintAgentResponse
 from app.services.ai_errors import AIResponseValidationError
 from app.services.edit_complaint_service import EditComplaintService
+from app.services.document_parser import (
+    CorruptDocumentError,
+    DocumentParserConfigurationError,
+    DocumentParserError,
+    DocumentTooLargeError,
+    EmptyDocumentError,
+    MAX_DOCUMENT_SIZE_BYTES,
+    NoExtractableTextError,
+    UnsupportedDocumentTypeError,
+)
 from app.services.groq_service import (
     GroqConfigurationError,
     GroqProviderError,
@@ -52,19 +64,13 @@ def get_complaint_graph_service(
     return ComplaintGraphService(legacy_log_service=service)
 
 
-async def _run_graph_request(
-    graph_service: ComplaintGraphService,
-    message: str,
-    *,
-    current_complaint=None,
+async def _run_graph_operation(
+    operation: Callable[[], Awaitable[ComplaintAgentResponse]],
 ) -> ComplaintAgentResponse:
-    """Run shared graph requests and preserve stable public error responses."""
+    """Run a graph operation and preserve stable public error responses."""
 
     try:
-        return await graph_service.run(
-            message,
-            current_complaint=current_complaint,
-        )
+        return await operation()
     except UnsupportedComplaintIntentError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -81,6 +87,9 @@ async def _run_graph_request(
             status_code=error_status,
             detail=str(exc),
         ) from exc
+    except (DocumentParserError, DocumentParserConfigurationError):
+        # Document-specific status mapping is handled by the upload wrapper.
+        raise
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -106,6 +115,77 @@ async def _run_graph_request(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to process complaint.",
         ) from exc
+
+
+async def _run_graph_request(
+    graph_service: ComplaintGraphService,
+    message: str,
+    *,
+    current_complaint=None,
+) -> ComplaintAgentResponse:
+    """Run a text graph request."""
+
+    return await _run_graph_operation(
+        lambda: graph_service.run(
+            message,
+            current_complaint=current_complaint,
+        )
+    )
+
+
+async def _run_document_request(
+    graph_service: ComplaintGraphService,
+    filename: str,
+    content: bytes,
+) -> ComplaintAgentResponse:
+    """Run a document graph request with parser-specific HTTP errors."""
+
+    try:
+        return await _run_graph_operation(
+            lambda: graph_service.run_document(filename, content)
+        )
+    except UnsupportedDocumentTypeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=str(exc),
+        ) from exc
+    except DocumentTooLargeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=str(exc),
+        ) from exc
+    except (
+        EmptyDocumentError,
+        CorruptDocumentError,
+        NoExtractableTextError,
+        DocumentParserError,
+    ) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    except DocumentParserConfigurationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Document parser is unavailable.",
+        ) from exc
+
+
+@agent_router.post("/document", response_model=ComplaintAgentResponse)
+async def agent_document(
+    file: UploadFile = File(...),
+    graph_service: ComplaintGraphService = Depends(get_complaint_graph_service),
+) -> ComplaintAgentResponse:
+    """Parse an uploaded complaint document and run the shared graph."""
+
+    try:
+        content = await file.read(MAX_DOCUMENT_SIZE_BYTES + 1)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Uploaded document could not be read.",
+        ) from exc
+    return await _run_document_request(graph_service, file.filename or "", content)
 
 
 @router.post("/log-complaint", response_model=ComplaintAgentResponse)
@@ -136,6 +216,7 @@ __all__ = [
     "get_complaint_graph_service",
     "get_log_complaint_service",
     "agent_message",
+    "agent_document",
     "agent_router",
     "log_complaint",
     "router",

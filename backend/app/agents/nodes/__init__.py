@@ -11,6 +11,16 @@ from app.agents.nodes.edit_complaint import (
     edit_complaint_node,
     make_edit_complaint_node,
 )
+from app.agents.nodes.extract_complaint_from_document import (
+    extract_complaint_from_document,
+    extract_complaint_from_document_node,
+    make_extract_complaint_from_document_node,
+)
+from app.agents.nodes.extract_document import (
+    extract_document,
+    extract_document_node,
+    make_extract_document_node,
+)
 from app.agents.nodes.generate_response import generate_response_node
 from app.agents.nodes.log_complaint import (
     log_complaint,
@@ -25,10 +35,16 @@ __all__ = [
     "classify_intent_node",
     "edit_complaint",
     "edit_complaint_node",
+    "extract_complaint_from_document",
+    "extract_complaint_from_document_node",
+    "extract_document",
+    "extract_document_node",
     "generate_response_node",
     "log_complaint_node",
     "log_complaint",
     "make_edit_complaint_node",
+    "make_extract_complaint_from_document_node",
+    "make_extract_document_node",
     "make_assess_risk_node",
     "make_log_complaint_node",
     "validate_complaint_node",

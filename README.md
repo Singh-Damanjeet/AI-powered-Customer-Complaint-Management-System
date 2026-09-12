@@ -2,7 +2,7 @@
 
 Foundation for an AI-powered customer complaint management system for pharmaceutical API/FDF manufacturing.
 
-This repository currently contains the no-Docker Phase 0 foundation, Phase 1 domain contracts, Phase 2 persistence/API layer, Phase 3 Groq structured-output service, the Phase 4 in-memory log complaint/risk-assessment workflow, the Phase 5 LangGraph orchestration layer, and the Phase 6 in-memory natural-language edit workflow. Document extraction is not implemented yet.
+This repository currently contains the no-Docker Phase 0 foundation, Phase 1 domain contracts, Phase 2 persistence/API layer, Phase 3 Groq structured-output service, the Phase 4 in-memory log complaint/risk-assessment workflow, the Phase 5 LangGraph orchestration layer, the Phase 6 in-memory natural-language edit workflow, and the Phase 7 document intake workflow. Frontend AI integration is not implemented yet.
 
 ## Architecture
 
@@ -142,5 +142,25 @@ The initial assessment uses `Unknown` classifications and `not_assessed` as its 
 - LangGraph edit path converging on validation, mandatory risk reassessment, and response generation.
 - `POST /api/agent/message` supports both new complaint logging and edits with caller-supplied current state.
 - No automatic PostgreSQL persistence, document extraction, or frontend AI integration.
+
+## Phase 7 scope
+
+- In-memory PDF, DOCX, TXT, and EML parsing with a 10 MB upload limit.
+- PDF text extraction through PyMuPDF, DOCX paragraph/table extraction through `python-docx`, and standard-library email parsing.
+- Clear handling for unsupported, empty, oversized, corrupt, and textless documents; scanned PDFs report that OCR is not supported.
+- Shared `ComplaintExtractionService` reuse for document factual extraction and grounding.
+- LangGraph document path with validation, mandatory risk assessment, and the existing response contract.
+- `POST /api/agent/document` multipart upload endpoint.
+- Fictional sample documents under `sample_documents/`.
+- No automatic PostgreSQL persistence, OCR, frontend upload UI, or document-to-edit-specific workflow.
+
+Document intake is available at:
+
+```bash
+curl -X POST http://localhost:8000/api/agent/document \
+  -F "file=@sample_documents/metformin_discoloration.pdf"
+```
+
+The returned complaint can be sent back to `POST /api/agent/message` for a natural-language edit. Uploaded documents are parsed and assessed in memory; saving remains a separate database operation.
 
 Docker is not required or included in this repository. There is no `docker-compose.yml` or `Dockerfile`.

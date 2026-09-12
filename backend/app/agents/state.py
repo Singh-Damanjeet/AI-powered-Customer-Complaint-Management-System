@@ -18,6 +18,8 @@ class ComplaintGraphState(TypedDict, total=False):
     complaint: dict[str, Any]
     complaint_patch: dict[str, Any]
     document_text: str | None
+    document_filename: str
+    document_content: bytes | None
     risk_assessment: dict[str, Any]
     assistant_message: str
     changed_fields: list[str]
@@ -36,6 +38,8 @@ def initial_complaint_graph_state(
     *,
     complaint: dict[str, Any] | None = None,
     document_text: str | None = None,
+    document_filename: str | None = None,
+    document_content: bytes | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> ComplaintGraphState:
     """Create the minimal state for one in-request workflow invocation."""
@@ -50,6 +54,10 @@ def initial_complaint_graph_state(
         state["complaint"] = complaint
     if document_text is not None:
         state["document_text"] = document_text
+    if document_filename is not None:
+        state["document_filename"] = document_filename
+    if document_content is not None:
+        state["document_content"] = document_content
     if metadata is not None:
         state["metadata"] = metadata
     return state

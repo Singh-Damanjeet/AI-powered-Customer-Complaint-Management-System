@@ -1,4 +1,4 @@
-"""Placeholder and terminal error nodes for future workflow branches."""
+"""Terminal nodes for unsupported or invalid workflow branches."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from app.agents.state import ComplaintGraphState
 
 
 def unsupported_for_now_node(state: ComplaintGraphState) -> dict[str, Any]:
-    """Explain that edit/document branches arrive in a later phase."""
+    """Explain when a requested branch cannot be used with the current input."""
 
     intent = state.get("intent")
     if intent == ComplaintIntent.EDIT_COMPLAINT.value:

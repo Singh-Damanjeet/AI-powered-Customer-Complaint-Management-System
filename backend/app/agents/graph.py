@@ -1,4 +1,4 @@
-"""Compiled LangGraph orchestration for complaint logging."""
+"""Compiled LangGraph orchestration for complaint intake workflows."""
 
 from __future__ import annotations
 
@@ -9,6 +9,10 @@ from langgraph.graph import END, START, StateGraph
 from app.agents.nodes.assess_risk import make_assess_risk_node
 from app.agents.nodes.classify_intent import classify_intent_node
 from app.agents.nodes.edit_complaint import make_edit_complaint_node
+from app.agents.nodes.extract_complaint_from_document import (
+    make_extract_complaint_from_document_node,
+)
+from app.agents.nodes.extract_document import make_extract_document_node
 from app.agents.nodes.generate_response import generate_response_node
 from app.agents.nodes.log_complaint import make_log_complaint_node
 from app.agents.nodes.unsupported import (
@@ -19,6 +23,8 @@ from app.agents.nodes.unsupported import (
 from app.agents.nodes.validate_complaint import validate_complaint_node
 from app.agents.router import (
     route_after_assess,
+    route_after_document,
+    route_after_document_extraction,
     route_after_edit,
     route_after_log,
     route_after_validate,
@@ -35,6 +41,7 @@ def build_complaint_graph(
     risk_service: RiskService | None = None,
     *,
     edit_service: Any | None = None,
+    document_parser_service: Any | None = None,
     groq_service: GroqService | None = None,
     legacy_log_service: Any | None = None,
 ):
@@ -72,6 +79,17 @@ def build_complaint_graph(
         "edit_complaint",
         make_edit_complaint_node(edit_service, groq_service=groq_service),
     )
+    builder.add_node(
+        "extract_document",
+        make_extract_document_node(document_parser_service),
+    )
+    builder.add_node(
+        "extract_complaint_from_document",
+        make_extract_complaint_from_document_node(
+            extraction_service,
+            groq_service=groq_service,
+        ),
+    )
     builder.add_node("validate_complaint", validate_complaint_node)
     builder.add_node(
         "assess_risk",
@@ -89,6 +107,7 @@ def build_complaint_graph(
         {
             "log_complaint": "log_complaint",
             "edit_complaint": "edit_complaint",
+            "extract_document": "extract_document",
             "unsupported_for_now": "unsupported_for_now",
             "unsupported_request": "unsupported_request",
             "workflow_error": "workflow_error",
@@ -105,6 +124,22 @@ def build_complaint_graph(
     builder.add_conditional_edges(
         "edit_complaint",
         route_after_edit,
+        {
+            "validate_complaint": "validate_complaint",
+            "workflow_error": "workflow_error",
+        },
+    )
+    builder.add_conditional_edges(
+        "extract_document",
+        route_after_document,
+        {
+            "extract_complaint_from_document": "extract_complaint_from_document",
+            "workflow_error": "workflow_error",
+        },
+    )
+    builder.add_conditional_edges(
+        "extract_complaint_from_document",
+        route_after_document_extraction,
         {
             "validate_complaint": "validate_complaint",
             "workflow_error": "workflow_error",

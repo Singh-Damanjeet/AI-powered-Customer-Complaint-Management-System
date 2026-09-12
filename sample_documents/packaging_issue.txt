@@ -1,0 +1,9 @@
+Customer: MedLife Pharmaceuticals
+Product: Paracetamol Tablets
+Strength: 500 mg
+Batch: PC26018
+Quantity Affected: Approximately 45 blister strips
+
+Complaint:
+Several blister packs were received with broken seals and damaged packaging.
+No adverse events have been reported.
