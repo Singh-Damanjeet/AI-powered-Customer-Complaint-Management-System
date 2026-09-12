@@ -1,8 +1,7 @@
 """Groq structured-output service.
 
-This module provides the infrastructure used by later LangGraph workflows. It
-does not create or modify complaints and is intentionally not wired into an
-API route in this phase.
+This module provides the structured-output infrastructure used by complaint
+workflow services. It does not create or modify complaints.
 """
 
 from __future__ import annotations

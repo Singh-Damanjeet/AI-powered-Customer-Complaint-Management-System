@@ -1,4 +1,4 @@
-"""LangGraph-ready log complaint tool without LangGraph orchestration."""
+"""Reusable log complaint tool for the complaint workflow."""
 
 from __future__ import annotations
 

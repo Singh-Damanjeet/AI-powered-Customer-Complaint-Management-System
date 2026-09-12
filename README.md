@@ -2,7 +2,7 @@
 
 Foundation for an AI-powered customer complaint management system for pharmaceutical API/FDF manufacturing.
 
-This repository currently contains the no-Docker Phase 0 foundation, Phase 1 domain contracts, Phase 2 persistence/API layer, Phase 3 Groq structured-output service, and the Phase 4 in-memory log complaint/risk-assessment workflow. Editing, document extraction, and LangGraph orchestration are not implemented yet.
+This repository currently contains the no-Docker Phase 0 foundation, Phase 1 domain contracts, Phase 2 persistence/API layer, Phase 3 Groq structured-output service, the Phase 4 in-memory log complaint/risk-assessment workflow, and the Phase 5 LangGraph orchestration layer. Editing and document extraction are not implemented yet.
 
 ## Architecture
 
@@ -112,7 +112,7 @@ The initial assessment uses `Unknown` classifications and `not_assessed` as its 
 - Pydantic validation of every structured response returned by Groq.
 - Provider, configuration, empty-response, JSON, and schema-validation error handling.
 - The existing complaint APIs, migrations, and persistence behavior remain unchanged.
-- LangGraph orchestration and complaint edit/document tools are reserved for later phases.
+- Complaint edit/document tools are reserved for later phases.
 
 ## Phase 4 scope
 
@@ -122,6 +122,16 @@ The initial assessment uses `Unknown` classifications and `not_assessed` as its 
 - Deterministic pharmaceutical risk-signal detection with basic negation handling.
 - Groq-backed preliminary `RiskAssessment` with mandatory QA review.
 - Unsaved `POST /api/ai/log-complaint` endpoint returning `ComplaintAgentResponse`.
-- No automatic PostgreSQL persistence, LangGraph routing, editing, or document parsing.
+- No automatic PostgreSQL persistence, editing, or document parsing.
+
+## Phase 5 scope
+
+- Typed, serializable `ComplaintGraphState` for in-request LangGraph execution.
+- Deterministic intent routing for log, edit, document, and unknown requests.
+- Compiled log workflow: intent classification, factual extraction, Pydantic validation, risk assessment, and safe response generation.
+- Existing Phase 4 extraction and risk services remain the source of AI business logic.
+- Clean placeholder responses and error handling for unsupported future branches.
+- `POST /api/ai/log-complaint` now executes through LangGraph and still returns an unsaved `ComplaintAgentResponse`.
+- No automatic PostgreSQL persistence, edit workflow, or document parsing.
 
 Docker is not required or included in this repository. There is no `docker-compose.yml` or `Dockerfile`.

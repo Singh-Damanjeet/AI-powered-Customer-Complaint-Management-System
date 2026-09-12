@@ -2,6 +2,11 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.services.complaint_graph_service import (
+    ComplaintGraphService,
+    ComplaintWorkflowError,
+    UnsupportedComplaintIntentError,
+)
 from app.schemas.ai import LogComplaintRequest
 from app.schemas.complaint import ComplaintAgentResponse
 from app.services.ai_errors import AIResponseValidationError
@@ -23,15 +28,51 @@ def get_log_complaint_service() -> LogComplaintService:
     return LogComplaintService()
 
 
+def get_complaint_graph_service(
+    service: LogComplaintService = Depends(get_log_complaint_service),
+) -> ComplaintGraphService:
+    """Build the graph service while retaining Phase 4 service injection.
+
+    Normal requests inject the Phase 4 extraction/risk dependencies into a
+    freshly compiled graph. A non-``LogComplaintService`` test double is
+    treated as a compatibility service by the graph's log node, so existing
+    API tests remain valid while the endpoint still invokes LangGraph.
+    """
+
+    if isinstance(service, LogComplaintService):
+        return ComplaintGraphService(
+            extraction_service=service.extraction_service,
+            risk_service=service.risk_service,
+            groq_service=service.groq_service,
+        )
+    return ComplaintGraphService(legacy_log_service=service)
+
+
 @router.post("/log-complaint", response_model=ComplaintAgentResponse)
 async def log_complaint(
     request: LogComplaintRequest,
-    service: LogComplaintService = Depends(get_log_complaint_service),
+    graph_service: ComplaintGraphService = Depends(get_complaint_graph_service),
 ) -> ComplaintAgentResponse:
-    """Extract and assess a complaint without persisting it."""
+    """Run the unsaved complaint workflow through the compiled LangGraph."""
 
     try:
-        return await service.process(request.message)
+        return await graph_service.run(request.message)
+    except UnsupportedComplaintIntentError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    except ComplaintWorkflowError as exc:
+        error_status = {
+            "AI_UNAVAILABLE": status.HTTP_503_SERVICE_UNAVAILABLE,
+            "AI_RESPONSE_INVALID": status.HTTP_502_BAD_GATEWAY,
+            "INVALID_INPUT": status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "INVALID_COMPLAINT": status.HTTP_422_UNPROCESSABLE_ENTITY,
+        }.get(exc.code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        raise HTTPException(
+            status_code=error_status,
+            detail=str(exc),
+        ) from exc
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -59,4 +100,9 @@ async def log_complaint(
         ) from exc
 
 
-__all__ = ["get_log_complaint_service", "log_complaint", "router"]
+__all__ = [
+    "get_complaint_graph_service",
+    "get_log_complaint_service",
+    "log_complaint",
+    "router",
+]
