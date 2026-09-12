@@ -11,6 +11,23 @@ from app.services.groq_service import GroqService
 from app.services.risk_service import RiskService
 
 
+def _risk_source_text(state: ComplaintGraphState, complaint: ComplaintData) -> str:
+    """Include existing complaint context when reassessing an edit."""
+
+    original_text = state.get("user_message")
+    if not isinstance(original_text, str) or not original_text.strip():
+        raise ValueError("user_message must be a non-empty string.")
+    if state.get("intent") != "EDIT_COMPLAINT":
+        return original_text
+
+    context_parts = [original_text.strip()]
+    if complaint.detailed_description:
+        context_parts.append(complaint.detailed_description)
+    if complaint.complaint_type:
+        context_parts.append(f"Complaint type: {complaint.complaint_type}")
+    return "\n".join(context_parts)
+
+
 async def assess_risk_node(
     state: ComplaintGraphState,
     risk_service: RiskService | None = None,
@@ -21,9 +38,7 @@ async def assess_risk_node(
 
     try:
         complaint = ComplaintData.model_validate(state.get("complaint"))
-        original_text = state.get("user_message")
-        if not isinstance(original_text, str) or not original_text.strip():
-            raise ValueError("user_message must be a non-empty string.")
+        original_text = _risk_source_text(state, complaint)
 
         service = risk_service or RiskService(groq_service)
         assessment = await maybe_await(

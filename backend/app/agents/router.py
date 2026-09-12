@@ -21,8 +21,12 @@ class ComplaintIntent(str, Enum):
 _EDIT_LANGUAGE_PATTERN = re.compile(
     r"\b(?:change|edit|update|correct|modify|replace|revise|amend|set)\b"
     r"|\bactually\b.*\b(?:quantity|batch|lot|product|strength|date|customer|"
-    r"description|contact)\b",
+    r"description|contact)\b|\b(?:should\s+be|is\s+now|are\s+now)\b",
     re.IGNORECASE | re.DOTALL,
+)
+_CONTEXT_EDIT_LANGUAGE_PATTERN = re.compile(
+    r"\b(?:actually|also|add\s+that|include\s+that|mention\s+that|append)\b",
+    re.IGNORECASE,
 )
 _DOCUMENT_LANGUAGE_PATTERN = re.compile(
     r"\b(?:upload(?:ed|ing)?|attachment|attached\s+(?:file|document)|document\s+"
@@ -56,6 +60,7 @@ def _explicit_intent(state: ComplaintGraphState) -> ComplaintIntent | None:
 def classify_intent_value(
     user_message: str,
     *,
+    current_complaint: Any | None = None,
     document_text: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> ComplaintIntent:
@@ -82,6 +87,10 @@ def classify_intent_value(
         return ComplaintIntent.DOCUMENT_COMPLAINT
     if _EDIT_LANGUAGE_PATTERN.search(normalized_message):
         return ComplaintIntent.EDIT_COMPLAINT
+    if current_complaint is not None and _CONTEXT_EDIT_LANGUAGE_PATTERN.search(
+        normalized_message
+    ):
+        return ComplaintIntent.EDIT_COMPLAINT
     if _LOG_LANGUAGE_PATTERN.search(normalized_message):
         return ComplaintIntent.LOG_COMPLAINT
     return ComplaintIntent.UNKNOWN
@@ -90,6 +99,7 @@ def classify_intent_value(
 def classify_intent(
     value: str | ComplaintGraphState,
     *,
+    current_complaint: Any | None = None,
     document_text: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> ComplaintIntent:
@@ -101,12 +111,18 @@ def classify_intent(
             return ComplaintIntent.UNKNOWN
         return classify_intent_value(
             message,
+            current_complaint=value.get("complaint"),
             document_text=value.get("document_text"),
             metadata=value.get("metadata"),
         )
     if not isinstance(value, str):
         return ComplaintIntent.UNKNOWN
-    return classify_intent_value(value, document_text=document_text, metadata=metadata)
+    return classify_intent_value(
+        value,
+        current_complaint=current_complaint,
+        document_text=document_text,
+        metadata=metadata,
+    )
 
 
 def route_by_intent(state: ComplaintGraphState) -> str:
@@ -122,16 +138,26 @@ def route_by_intent(state: ComplaintGraphState) -> str:
 
     if intent is ComplaintIntent.LOG_COMPLAINT:
         return "log_complaint"
-    if intent in {
-        ComplaintIntent.EDIT_COMPLAINT,
-        ComplaintIntent.DOCUMENT_COMPLAINT,
-    }:
+    if intent is ComplaintIntent.EDIT_COMPLAINT:
+        # An edit has no safe target until the caller supplies the current
+        # complaint. Keep the request on the terminal compatibility branch
+        # instead of invoking the edit tool with missing state.
+        if state.get("complaint") is None:
+            return "unsupported_for_now"
+        return "edit_complaint"
+    if intent is ComplaintIntent.DOCUMENT_COMPLAINT:
         return "unsupported_for_now"
     return "unsupported_request"
 
 
 def route_after_log(state: ComplaintGraphState) -> str:
     """Stop after extraction failures; otherwise validate extracted data."""
+
+    return "workflow_error" if state.get("errors") else "validate_complaint"
+
+
+def route_after_edit(state: ComplaintGraphState) -> str:
+    """Stop after edit/merge failures; otherwise validate updated state."""
 
     return "workflow_error" if state.get("errors") else "validate_complaint"
 
@@ -162,6 +188,7 @@ __all__ = [
     "classify_intent",
     "classify_intent_value",
     "route_after_assess",
+    "route_after_edit",
     "route_after_log",
     "route_after_validate",
     "route_by_intent",

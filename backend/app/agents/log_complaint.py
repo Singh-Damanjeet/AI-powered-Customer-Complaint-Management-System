@@ -9,6 +9,7 @@ from app.agents.prompts.risk_assessment import (
     build_risk_assessment_prompt,
 )
 from app.agents.tools.log_complaint import LogComplaintTool, log_complaint
+from app.agents.tools.edit_complaint import EditComplaintTool, edit_complaint
 from app.schemas.risk import RiskSignals
 from app.services.ai_errors import AIResponseValidationError
 from app.services.log_complaint_service import LogComplaintService
@@ -17,6 +18,7 @@ from app.services.risk_service import RiskAssessmentService, RiskService
 __all__ = [
     "AIResponseValidationError",
     "COMPLAINT_EXTRACTION_SYSTEM_PROMPT",
+    "EditComplaintTool",
     "RISK_ASSESSMENT_SYSTEM_PROMPT",
     "LogComplaintService",
     "LogComplaintTool",
@@ -25,5 +27,6 @@ __all__ = [
     "RiskSignals",
     "build_complaint_extraction_prompt",
     "build_risk_assessment_prompt",
+    "edit_complaint",
     "log_complaint",
 ]

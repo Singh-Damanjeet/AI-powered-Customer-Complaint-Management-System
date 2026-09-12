@@ -1,5 +1,17 @@
-"""Compatibility export for the complaint agent response contract."""
+"""Contracts for the shared complaint agent endpoint."""
 
-from app.schemas.complaint import ComplaintAgentResponse
+from pydantic import BaseModel, ConfigDict
 
-__all__ = ["ComplaintAgentResponse"]
+from app.schemas.complaint import ComplaintAgentResponse, ComplaintData, NonEmptyText
+
+
+class AgentMessageRequest(BaseModel):
+    """Natural-language agent input with optional in-memory complaint state."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    message: NonEmptyText
+    complaint: ComplaintData | None = None
+
+
+__all__ = ["AgentMessageRequest", "ComplaintAgentResponse"]

@@ -8,6 +8,7 @@ from langgraph.graph import END, START, StateGraph
 
 from app.agents.nodes.assess_risk import make_assess_risk_node
 from app.agents.nodes.classify_intent import classify_intent_node
+from app.agents.nodes.edit_complaint import make_edit_complaint_node
 from app.agents.nodes.generate_response import generate_response_node
 from app.agents.nodes.log_complaint import make_log_complaint_node
 from app.agents.nodes.unsupported import (
@@ -18,6 +19,7 @@ from app.agents.nodes.unsupported import (
 from app.agents.nodes.validate_complaint import validate_complaint_node
 from app.agents.router import (
     route_after_assess,
+    route_after_edit,
     route_after_log,
     route_after_validate,
     route_by_intent,
@@ -32,6 +34,7 @@ def build_complaint_graph(
     extraction_service: ComplaintExtractionService | None = None,
     risk_service: RiskService | None = None,
     *,
+    edit_service: Any | None = None,
     groq_service: GroqService | None = None,
     legacy_log_service: Any | None = None,
 ):
@@ -48,6 +51,13 @@ def build_complaint_graph(
         )
         risk_service = risk_service or RiskService(groq_service)
 
+    if groq_service is not None:
+        from app.services.edit_complaint_service import EditComplaintService
+
+        edit_service = edit_service or EditComplaintService(
+            groq_service=groq_service
+        )
+
     builder = StateGraph(ComplaintGraphState)
     builder.add_node("classify_intent", classify_intent_node)
     builder.add_node(
@@ -57,6 +67,10 @@ def build_complaint_graph(
             groq_service=groq_service,
             legacy_log_service=legacy_log_service,
         ),
+    )
+    builder.add_node(
+        "edit_complaint",
+        make_edit_complaint_node(edit_service, groq_service=groq_service),
     )
     builder.add_node("validate_complaint", validate_complaint_node)
     builder.add_node(
@@ -74,6 +88,7 @@ def build_complaint_graph(
         route_by_intent,
         {
             "log_complaint": "log_complaint",
+            "edit_complaint": "edit_complaint",
             "unsupported_for_now": "unsupported_for_now",
             "unsupported_request": "unsupported_request",
             "workflow_error": "workflow_error",
@@ -82,6 +97,14 @@ def build_complaint_graph(
     builder.add_conditional_edges(
         "log_complaint",
         route_after_log,
+        {
+            "validate_complaint": "validate_complaint",
+            "workflow_error": "workflow_error",
+        },
+    )
+    builder.add_conditional_edges(
+        "edit_complaint",
+        route_after_edit,
         {
             "validate_complaint": "validate_complaint",
             "workflow_error": "workflow_error",

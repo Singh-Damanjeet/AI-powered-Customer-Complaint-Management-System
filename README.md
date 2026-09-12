@@ -2,7 +2,7 @@
 
 Foundation for an AI-powered customer complaint management system for pharmaceutical API/FDF manufacturing.
 
-This repository currently contains the no-Docker Phase 0 foundation, Phase 1 domain contracts, Phase 2 persistence/API layer, Phase 3 Groq structured-output service, the Phase 4 in-memory log complaint/risk-assessment workflow, and the Phase 5 LangGraph orchestration layer. Editing and document extraction are not implemented yet.
+This repository currently contains the no-Docker Phase 0 foundation, Phase 1 domain contracts, Phase 2 persistence/API layer, Phase 3 Groq structured-output service, the Phase 4 in-memory log complaint/risk-assessment workflow, the Phase 5 LangGraph orchestration layer, and the Phase 6 in-memory natural-language edit workflow. Document extraction is not implemented yet.
 
 ## Architecture
 
@@ -132,6 +132,15 @@ The initial assessment uses `Unknown` classifications and `not_assessed` as its 
 - Existing Phase 4 extraction and risk services remain the source of AI business logic.
 - Clean placeholder responses and error handling for unsupported future branches.
 - `POST /api/ai/log-complaint` now executes through LangGraph and still returns an unsaved `ComplaintAgentResponse`.
-- No automatic PostgreSQL persistence, edit workflow, or document parsing.
+- No automatic PostgreSQL persistence or document parsing.
+
+## Phase 6 scope
+
+- Source-grounded `EditComplaintTool` that returns only a sparse `ComplaintPatch`.
+- Safe patch merging that preserves omitted fields and supports explicit `null` clears.
+- Description additions preserve existing complaint context; explicit replacements replace it.
+- LangGraph edit path converging on validation, mandatory risk reassessment, and response generation.
+- `POST /api/agent/message` supports both new complaint logging and edits with caller-supplied current state.
+- No automatic PostgreSQL persistence, document extraction, or frontend AI integration.
 
 Docker is not required or included in this repository. There is no `docker-compose.yml` or `Dockerfile`.

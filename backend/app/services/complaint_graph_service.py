@@ -9,7 +9,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.agents.graph import build_complaint_graph
-from app.agents.state import ComplaintGraphState, initial_complaint_graph_state
+from app.agents.state import initial_complaint_graph_state
 from app.schemas.complaint import ComplaintAgentResponse, ComplaintData, RiskAssessment
 from app.services.ai_errors import AIResponseValidationError
 from app.services.groq_service import (
@@ -63,23 +63,41 @@ class ComplaintGraphService:
         *,
         extraction_service: Any | None = None,
         risk_service: Any | None = None,
+        edit_service: Any | None = None,
         groq_service: Any | None = None,
         legacy_log_service: Any | None = None,
     ) -> None:
         self.graph = graph if graph is not None else build_complaint_graph(
             extraction_service=extraction_service,
             risk_service=risk_service,
+            edit_service=edit_service,
             groq_service=groq_service,
             legacy_log_service=legacy_log_service,
         )
 
-    async def run(self, user_message: str) -> ComplaintAgentResponse:
+    async def run(
+        self,
+        user_message: str,
+        current_complaint: ComplaintData | None = None,
+    ) -> ComplaintAgentResponse:
         """Invoke the graph and validate its final response envelope."""
 
         if not isinstance(user_message, str) or not user_message.strip():
             raise ValueError("user_message must be a non-empty string.")
 
-        initial_state = initial_complaint_graph_state(user_message.strip())
+        validated_current = (
+            ComplaintData.model_validate(current_complaint)
+            if current_complaint is not None
+            else None
+        )
+        initial_state = initial_complaint_graph_state(
+            user_message.strip(),
+            complaint=(
+                validated_current.model_dump(mode="json")
+                if validated_current is not None
+                else None
+            ),
+        )
         logger.info("Complaint graph started")
         try:
             invoke_result = self.graph.ainvoke(initial_state)
@@ -164,10 +182,14 @@ class ComplaintGraphService:
         logger.info("Complaint graph completed")
         return response
 
-    async def process(self, user_message: str) -> ComplaintAgentResponse:
+    async def process(
+        self,
+        user_message: str,
+        current_complaint: ComplaintData | None = None,
+    ) -> ComplaintAgentResponse:
         """Compatibility alias for service callers that use ``process``."""
 
-        return await self.run(user_message)
+        return await self.run(user_message, current_complaint=current_complaint)
 
 
 __all__ = [

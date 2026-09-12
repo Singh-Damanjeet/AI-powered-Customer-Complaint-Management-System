@@ -22,6 +22,7 @@ def classify_intent_node(state: ComplaintGraphState) -> dict[str, Any]:
 
     intent = classify_intent_value(
         message,
+        current_complaint=state.get("complaint"),
         document_text=state.get("document_text"),
         metadata=state.get("metadata"),
     )

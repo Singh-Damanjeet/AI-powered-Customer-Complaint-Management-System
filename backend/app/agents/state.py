@@ -25,6 +25,8 @@ class ComplaintGraphState(TypedDict, total=False):
     error_code: str
     workflow_status: str
     legacy_processed: bool
+    edit_outcome: str
+    edit_notice: str
     request_id: str
     metadata: dict[str, Any]
 
@@ -32,6 +34,7 @@ class ComplaintGraphState(TypedDict, total=False):
 def initial_complaint_graph_state(
     user_message: str,
     *,
+    complaint: dict[str, Any] | None = None,
     document_text: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> ComplaintGraphState:
@@ -39,9 +42,12 @@ def initial_complaint_graph_state(
 
     state: ComplaintGraphState = {
         "user_message": user_message,
+        "complaint_patch": {},
         "errors": [],
         "changed_fields": [],
     }
+    if complaint is not None:
+        state["complaint"] = complaint
     if document_text is not None:
         state["document_text"] = document_text
     if metadata is not None:
