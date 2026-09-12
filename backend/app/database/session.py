@@ -3,7 +3,7 @@
 from collections.abc import Generator
 from functools import lru_cache
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -19,6 +19,13 @@ def get_engine() -> Engine:
         raise RuntimeError("DATABASE_URL is not configured.")
 
     return create_engine(database_url, pool_pre_ping=True)
+
+
+def check_database_connection() -> None:
+    """Raise if the configured database cannot execute a trivial query."""
+
+    with get_engine().connect() as connection:
+        connection.execute(text("SELECT 1"))
 
 
 def get_session_factory() -> sessionmaker[Session]:

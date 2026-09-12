@@ -9,3 +9,4 @@ class HealthResponse(BaseModel):
     """Health endpoint response contract."""
 
     status: Literal["ok"]
+    database: Literal["connected"]

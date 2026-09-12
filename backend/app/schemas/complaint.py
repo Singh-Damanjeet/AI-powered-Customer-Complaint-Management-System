@@ -41,6 +41,23 @@ class Priority(str, Enum):
     UNKNOWN = "Unknown"
 
 
+class ComplaintStatus(str, Enum):
+    """Lifecycle states supported by persisted complaints."""
+
+    DRAFT = "DRAFT"
+    PENDING_TRIAGE = "PENDING_TRIAGE"
+    UNDER_INVESTIGATION = "UNDER_INVESTIGATION"
+    CLOSED = "CLOSED"
+
+
+class AuditSource(str, Enum):
+    """Origin recorded for a complaint audit event."""
+
+    AI = "AI"
+    USER = "USER"
+    SYSTEM = "SYSTEM"
+
+
 class ComplaintFields(BaseModel):
     """Shared nullable complaint fields.
 

@@ -1,16 +1,31 @@
+import pytest
 from fastapi.testclient import TestClient
 
+from app.config import get_settings
+from app.database.session import get_engine
 from app.main import app
 
 
 client = TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def configured_test_database(monkeypatch: pytest.MonkeyPatch):
+    """Use an isolated SQLite connection for the health query tests."""
+
+    monkeypatch.setenv("DATABASE_URL", "sqlite://")
+    get_settings.cache_clear()
+    get_engine.cache_clear()
+    yield
+    get_engine.cache_clear()
+    get_settings.cache_clear()
+
+
 def test_health_endpoint_returns_ok() -> None:
     response = client.get("/api/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {"status": "ok", "database": "connected"}
 
 
 def test_health_endpoint_allows_configured_frontend_origin() -> None:
@@ -24,3 +39,16 @@ def test_health_endpoint_allows_configured_frontend_origin() -> None:
 
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
+def test_health_endpoint_reports_unavailable_database(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DATABASE_URL")
+    get_settings.cache_clear()
+    get_engine.cache_clear()
+
+    response = client.get("/api/health")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Database connection unavailable."

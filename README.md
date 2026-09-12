@@ -2,7 +2,7 @@
 
 Foundation for an AI-powered customer complaint management system for pharmaceutical API/FDF manufacturing.
 
-This repository currently contains the Phase 0 foundation and Phase 1 domain contracts. AI calls and complaint workflows are intentionally not implemented yet.
+This repository currently contains the no-Docker Phase 0 foundation, Phase 1 domain contracts, and Phase 2 persistence/API layer. AI calls and complaint editing workflows are intentionally not implemented yet.
 
 ## Architecture
 
@@ -11,9 +11,8 @@ pharma-complaint-ai/
 ├── frontend/
 ├── backend/
 ├── sample_documents/
-├── docker-compose.yml
-├── .gitignore
 ├── .env.example
+├── .gitignore
 └── README.md
 ```
 
@@ -21,29 +20,25 @@ pharma-complaint-ai/
 
 - Node.js 20 or newer and npm
 - Python 3.11 or newer
-- Docker with Docker Compose
+- PostgreSQL 14 or newer installed locally, or a managed PostgreSQL database from a provider such as Neon or Supabase
 
 ## Local setup
 
-1. Copy the environment template and set a local PostgreSQL password:
+1. Copy the environment template:
 
    ```bash
    cp .env.example .env
    ```
 
-   Set `POSTGRES_PASSWORD` in `.env`. Once PostgreSQL is running, set `DATABASE_URL` to the matching SQLAlchemy URL, for example:
+   Set `DATABASE_URL` to your managed-provider or local PostgreSQL connection string. Use the `psycopg` SQLAlchemy driver prefix, for example:
 
    ```ini
-   DATABASE_URL=postgresql+psycopg://postgres:your-password@localhost:5432/pharma_complaint_ai
+   DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:5432/DATABASE_NAME
    ```
 
-2. Start PostgreSQL:
+   For managed providers that require TLS, append `?sslmode=require` to the URL. Keep `GROQ_API_KEY` and `GROQ_MODEL` empty until the AI phase.
 
-   ```bash
-   docker compose up -d postgres
-   ```
-
-3. Install backend dependencies and start FastAPI:
+2. Install backend dependencies, run migrations, and start FastAPI:
 
    ```bash
    python3 -m venv .venv
@@ -56,7 +51,7 @@ pharma-complaint-ai/
 
    The API is available at `http://localhost:8000`.
 
-4. Install frontend dependencies and start Vite in a second terminal:
+3. Install frontend dependencies and start Vite in a second terminal:
 
    ```bash
    cd frontend
@@ -76,16 +71,20 @@ Response:
 
 ```json
 {
-  "status": "ok"
+  "status": "ok",
+  "database": "connected"
 }
 ```
+
+The health check executes `SELECT 1` against `DATABASE_URL`. If the database is not configured or unavailable, it returns HTTP 503.
 
 ## Phase 0 scope
 
 - React/Vite frontend shell with Redux Toolkit, React Redux, Axios, and Google Inter font loading.
 - FastAPI application with environment-based settings and local-development CORS.
 - SQLAlchemy session foundation and Alembic configuration.
-- PostgreSQL Docker Compose service.
+- Managed or locally installed PostgreSQL connection through `DATABASE_URL`.
+- Database-backed health check at `/api/health`.
 - LangGraph and Groq SDK dependencies ready for a later phase.
 
 ## Phase 1 scope
@@ -95,4 +94,16 @@ Response:
 - Patch serialization that excludes omitted fields from natural-language updates.
 - Validation tests for supported values, malformed risk classifications, and patch semantics.
 
-No AI calls, complaint creation/editing endpoints, document extraction, database persistence, risk reassessment execution, or manual complaint form has been added.
+At the end of Phase 1, no AI calls, document extraction, risk reassessment execution, or manual complaint form had been added.
+
+## Phase 2 scope
+
+- SQLAlchemy models and Alembic migration for complaints, AI assessment snapshots, and audit logs.
+- PostgreSQL JSONB storage for recommended actions.
+- Complaint creation and read/list endpoints under `/api/complaints`.
+- Atomic persistence of a complaint, initial not-assessed snapshot, and creation audit event.
+- Repository/service tests covering reload from a new database session.
+
+The initial assessment uses `Unknown` classifications and `not_assessed` as its model name until a later phase adds AI invocation.
+
+Docker is not required or included in this repository. There is no `docker-compose.yml` or `Dockerfile`.
