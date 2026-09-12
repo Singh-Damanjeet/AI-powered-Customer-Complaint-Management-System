@@ -1,1 +1,1 @@
-"""LangGraph agents will be added in a later phase."""
+"""AI tools prepared for later LangGraph orchestration."""

@@ -2,7 +2,7 @@
 
 Foundation for an AI-powered customer complaint management system for pharmaceutical API/FDF manufacturing.
 
-This repository currently contains the no-Docker Phase 0 foundation, Phase 1 domain contracts, Phase 2 persistence/API layer, and Phase 3 Groq structured-output service. Complaint creation, editing, document extraction, and risk-assessment workflows are intentionally not wired in yet.
+This repository currently contains the no-Docker Phase 0 foundation, Phase 1 domain contracts, Phase 2 persistence/API layer, Phase 3 Groq structured-output service, and the Phase 4 in-memory log complaint/risk-assessment workflow. Editing, document extraction, and LangGraph orchestration are not implemented yet.
 
 ## Architecture
 
@@ -112,6 +112,16 @@ The initial assessment uses `Unknown` classifications and `not_assessed` as its 
 - Pydantic validation of every structured response returned by Groq.
 - Provider, configuration, empty-response, JSON, and schema-validation error handling.
 - The existing complaint APIs, migrations, and persistence behavior remain unchanged.
-- LangGraph orchestration and complaint log/edit/document tools are reserved for Phase 4.
+- LangGraph orchestration and complaint edit/document tools are reserved for later phases.
+
+## Phase 4 scope
+
+- Factual natural-language extraction into validated `ComplaintData`.
+- Safe complaint-type, strength, and quantity-unit normalization.
+- Source-grounding that clears unsupported factual values to `null`.
+- Deterministic pharmaceutical risk-signal detection with basic negation handling.
+- Groq-backed preliminary `RiskAssessment` with mandatory QA review.
+- Unsaved `POST /api/ai/log-complaint` endpoint returning `ComplaintAgentResponse`.
+- No automatic PostgreSQL persistence, LangGraph routing, editing, or document parsing.
 
 Docker is not required or included in this repository. There is no `docker-compose.yml` or `Dockerfile`.

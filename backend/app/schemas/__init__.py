@@ -11,12 +11,14 @@ from app.schemas.complaint import (
     RiskAssessment,
     Severity,
 )
+from app.schemas.ai import LogComplaintRequest
 from app.schemas.persistence import (
     AIAssessmentResponse,
     ComplaintCreateRequest,
     ComplaintRead,
     ComplaintResponse,
 )
+from app.schemas.risk import RiskSignalAnalysis, RiskSignals
 
 __all__ = [
     "ComplaintAgentResponse",
@@ -25,11 +27,14 @@ __all__ = [
     "ComplaintPatch",
     "ComplaintRead",
     "ComplaintResponse",
+    "LogComplaintRequest",
     "ComplaintStatus",
     "AuditSource",
     "AIAssessmentResponse",
     "Priority",
     "ProductType",
     "RiskAssessment",
+    "RiskSignalAnalysis",
+    "RiskSignals",
     "Severity",
 ]
