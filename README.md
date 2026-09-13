@@ -64,6 +64,7 @@ The exact prompts and timed recording sequence are in
 - [Final handoff](docs/handoff.md)
 - [Final submission template](docs/final-submission.md)
 - [Final release summary](docs/final-release-summary.md)
+- [Final verification report](docs/final-verification-report.md)
 - [Recording checklist](docs/recording/final-recording-checklist.md)
 - [Submission form checklist](docs/submission-form-checklist.md)
 - [Requirement mapping](docs/requirement-mapping.md)

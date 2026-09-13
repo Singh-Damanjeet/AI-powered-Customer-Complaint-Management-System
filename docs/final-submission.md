@@ -56,5 +56,6 @@ React, Redux Toolkit, FastAPI, LangGraph, Groq, PostgreSQL
 - Requirement mapping: `docs/requirement-mapping.md`
 - Release notes: `docs/release-notes.md`
 - Final release summary: `docs/final-release-summary.md`
+- Final verification report: `docs/final-verification-report.md`
 - Final recording checklist: `docs/recording/final-recording-checklist.md`
 - Submission form checklist: `docs/submission-form-checklist.md`
