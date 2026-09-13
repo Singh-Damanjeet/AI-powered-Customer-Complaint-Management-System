@@ -8,6 +8,7 @@ from app.services.complaint_service import (
 )
 from app.services.ai_errors import AIResponseValidationError
 from app.services.complaint_extraction_service import ComplaintExtractionService
+from app.services.complaint_save_service import ComplaintSaveService, save_complaint
 from app.services.document_complaint_service import DocumentComplaintService
 from app.services.document_parser import (
     CorruptDocumentError,
@@ -36,6 +37,7 @@ __all__ = [
     "ComplaintService",
     "AIResponseValidationError",
     "ComplaintExtractionService",
+    "ComplaintSaveService",
     "DocumentComplaintService",
     "DocumentParserConfigurationError",
     "DocumentParserError",
@@ -53,6 +55,7 @@ __all__ = [
     "LogComplaintService",
     "RiskAssessmentService",
     "RiskService",
+    "save_complaint",
     "log_complaint",
     "to_complaint_response",
 ]

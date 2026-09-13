@@ -1,6 +1,7 @@
 import { useSelector } from 'react-redux'
 
 import Button from '../components/common/Button'
+import AuditTimeline from '../components/audit/AuditTimeline'
 import ComplaintForm from '../components/complaint/ComplaintForm'
 import CopilotPanel from '../components/copilot/CopilotPanel'
 import { useComplaintWorkflow } from '../hooks/useComplaintWorkflow'
@@ -10,6 +11,7 @@ export default function ComplaintPage() {
   const copilotState = useSelector((state) => state.copilot)
   const {
     isProcessing,
+    isSaved,
     resetWorkspace,
     saveCurrentComplaint,
     submitMessage,
@@ -50,51 +52,62 @@ export default function ComplaintPage() {
       </section>
 
       <div className="workspace-grid">
-        <section className="record-card" aria-labelledby="record-heading">
-          <div className="record-card-header">
-            <div>
-              <div className="card-kicker">COMPLAINT RECORD</div>
-              <h2 id="record-heading">Complaint details</h2>
-              <p>Facts are populated from Copilot messages and source documents.</p>
+        <div className="record-stack">
+          <section className="record-card" aria-labelledby="record-heading">
+            <div className="record-card-header">
+              <div>
+                <div className="card-kicker">COMPLAINT RECORD</div>
+                <h2 id="record-heading">Complaint details</h2>
+                <p>Facts are populated from Copilot messages and source documents.</p>
+              </div>
+              <span className="readonly-badge"><span aria-hidden="true">▣</span> Read-only</span>
             </div>
-            <span className="readonly-badge"><span aria-hidden="true">▣</span> Read-only</span>
-          </div>
 
-          <ComplaintForm
-            changedFields={complaintState.changedFields}
-            complaint={complaintState.complaint}
-            riskAssessment={complaintState.riskAssessment}
+            <ComplaintForm
+              changedFields={complaintState.changedFields}
+              complaint={complaintState.complaint}
+              riskAssessment={complaintState.riskAssessment}
+            />
+
+            <div className="record-actions">
+              <div className="save-feedback" aria-live="polite">
+                {complaintState.saveStatus === 'success' && savedNumber && (
+                  <span className="save-success">Complaint saved as {savedNumber}</span>
+                )}
+                {complaintState.saveError && <span className="save-error">{complaintState.saveError}</span>}
+                {!complaintState.saveError && complaintState.saveStatus !== 'success' && (
+                  <span>Save only when the AI-assisted record is ready for QA.</span>
+                )}
+                {complaintState.saveStatus === 'success' && (
+                  <span className="save-hint">Reset to start a new complaint.</span>
+                )}
+              </div>
+              <div className="record-action-buttons">
+                <Button disabled={isProcessing} onClick={resetWorkspace} type="button" variant="secondary">
+                  Reset
+                </Button>
+                <Button
+                  disabled={isProcessing || isSaved || complaintState.saveStatus === 'saving'}
+                  onClick={saveCurrentComplaint}
+                  type="button"
+                >
+                  {isSaved ? 'Saved' : complaintState.saveStatus === 'saving' ? 'Saving…' : 'Save Complaint'}
+                </Button>
+              </div>
+            </div>
+          </section>
+
+          <AuditTimeline
+            events={isSaved ? complaintState.auditEvents : complaintState.pendingAuditEvents}
+            saved={isSaved}
           />
-
-          <div className="record-actions">
-            <div className="save-feedback" aria-live="polite">
-              {complaintState.saveStatus === 'success' && savedNumber && (
-                <span className="save-success">Complaint saved as {savedNumber}</span>
-              )}
-              {complaintState.saveError && <span className="save-error">{complaintState.saveError}</span>}
-              {!complaintState.saveError && complaintState.saveStatus !== 'success' && (
-                <span>Save only when the AI-assisted record is ready for QA.</span>
-              )}
-            </div>
-            <div className="record-action-buttons">
-              <Button disabled={isProcessing} onClick={resetWorkspace} type="button" variant="secondary">
-                Reset
-              </Button>
-              <Button
-                disabled={isProcessing || complaintState.saveStatus === 'saving'}
-                onClick={saveCurrentComplaint}
-                type="button"
-              >
-                {complaintState.saveStatus === 'saving' ? 'Saving…' : 'Save Complaint'}
-              </Button>
-            </div>
-          </div>
-        </section>
+        </div>
 
         <aside aria-label="AI complaint copilot">
           <CopilotPanel
             error={copilotState.error}
             isProcessing={isProcessing}
+            isSaved={isSaved}
             messages={copilotState.messages}
             onSubmit={submitMessage}
             onUpload={uploadDocument}

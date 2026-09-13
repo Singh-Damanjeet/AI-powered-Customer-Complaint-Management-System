@@ -7,6 +7,7 @@ import RiskAssessmentCard from '../risk/RiskAssessmentCard'
 export default function CopilotPanel({
   error,
   isProcessing,
+  isSaved = false,
   messages,
   onSubmit,
   onUpload,
@@ -28,16 +29,18 @@ export default function CopilotPanel({
           </div>
           <span className={`copilot-status copilot-status--${status}`}>
             <span className="status-dot" aria-hidden="true" />
-            {status === 'processing' ? 'Working' : status === 'error' ? 'Needs attention' : 'Ready'}
+            {isSaved ? 'Saved' : status === 'processing' ? 'Working' : status === 'error' ? 'Needs attention' : 'Ready'}
           </span>
         </div>
 
         <p className="copilot-intro">
-          Tell me what happened or upload the customer’s document. I’ll keep factual details grounded in the source.
+          {isSaved
+            ? 'This complaint is saved. Reset to begin a new AI-assisted complaint.'
+            : 'Tell me what happened or upload the customer’s document. I’ll keep factual details grounded in the source.'}
         </p>
 
         <DocumentUpload
-          disabled={isProcessing}
+          disabled={isProcessing || isSaved}
           onUpload={onUpload}
           uploadedFileName={uploadedFileName}
         />
@@ -46,7 +49,7 @@ export default function CopilotPanel({
 
         <ChatMessages messages={messages} />
         <ProcessingStatus message={processingMessage} visible={isProcessing} />
-        <ChatInput disabled={isProcessing} onSubmit={onSubmit} />
+        <ChatInput disabled={isProcessing || isSaved} locked={isSaved} onSubmit={onSubmit} />
       </section>
 
       <RiskAssessmentCard assessment={riskAssessment} />

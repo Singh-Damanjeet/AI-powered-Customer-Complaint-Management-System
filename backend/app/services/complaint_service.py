@@ -1,18 +1,13 @@
-"""Complaint persistence orchestration."""
+"""Read/query boundary for persisted complaints."""
 
-from enum import Enum
+from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
-from app.models.ai_assessment import AIAssessment
-from app.models.audit_log import ComplaintAuditLog
 from app.models.complaint import Complaint
-from app.models.enums import AuditSource, ComplaintStatus
 from app.repositories.complaint_repository import ComplaintRepository
-from app.schemas.complaint import ComplaintData, RiskAssessment
+from app.schemas.complaint import ComplaintData
 from app.schemas.persistence import (
     AIAssessmentResponse,
     ComplaintCreateRequest,
@@ -28,42 +23,17 @@ class ComplaintPersistenceError(RuntimeError):
     """Raised when a complaint transaction cannot be committed."""
 
 
-def generate_complaint_number() -> str:
-    """Generate a collision-resistant human-readable complaint number."""
+def generate_complaint_number(sequence: int | None = None) -> str:
+    """Generate a readable number with a collision-resistant sequence part.
 
-    return f"CMP-{uuid4().hex[:12].upper()}"
+    The optional sequence lets the save transaction use the database-generated
+    complaint ID. The UUID fallback keeps this helper useful to callers that
+    need a number before an ID exists.
+    """
 
-
-def _assessment_model(
-    complaint_id: int,
-    assessment: RiskAssessment,
-    model_name: str | None,
-) -> AIAssessment:
-    """Map a validated risk assessment to its persistence model."""
-
-    configured_model = get_settings().groq_model
-    return AIAssessment(
-        complaint_id=complaint_id,
-        severity=assessment.severity,
-        priority=assessment.priority,
-        rationale=assessment.rationale,
-        recommended_actions=list(assessment.recommended_actions),
-        qa_investigation_required=assessment.qa_investigation_required,
-        product_replacement_recommended=assessment.product_replacement_recommended,
-        model_name=model_name or configured_model or "not_assessed",
-    )
-
-
-def _audit_value(value: object) -> str | None:
-    """Convert a scalar value to a stable audit-log representation."""
-
-    if value is None:
-        return None
-    if isinstance(value, Enum):
-        return str(value.value)
-    if hasattr(value, "isoformat"):
-        return str(value.isoformat())
-    return str(value)
+    sequence = sequence if sequence is not None else uuid4().int % 10000
+    year = datetime.now(timezone.utc).year
+    return f"CMP-{year}-{sequence:04d}"
 
 
 class ComplaintService:
@@ -74,50 +44,11 @@ class ComplaintService:
         self.session = session
 
     def create(self, request: ComplaintCreateRequest | ComplaintData) -> Complaint:
-        """Persist a complaint and its initial assessment in one transaction."""
+        """Persist via the Phase 9 transactional save service."""
 
-        create_request = (
-            request
-            if isinstance(request, ComplaintCreateRequest)
-            else ComplaintCreateRequest.model_validate(request.model_dump(mode="python"))
-        )
-        assessment = create_request.risk_assessment or RiskAssessment()
-        complaint_values = create_request.model_dump(
-            exclude={"risk_assessment", "model_name"},
-            mode="python",
-        )
-        complaint = Complaint(
-            **complaint_values,
-            complaint_number=generate_complaint_number(),
-            severity=assessment.severity,
-            priority=assessment.priority,
-            status=ComplaintStatus.DRAFT,
-        )
+        from app.services.complaint_save_service import ComplaintSaveService
 
-        try:
-            self.repository.add_complaint(complaint)
-            self.repository.add_assessment(
-                _assessment_model(complaint.id, assessment, create_request.model_name)
-            )
-            self.repository.add_audit_log(
-                ComplaintAuditLog(
-                    complaint_id=complaint.id,
-                    action="CREATE",
-                    field_name=None,
-                    old_value=None,
-                    new_value=_audit_value(complaint.complaint_number),
-                    source=AuditSource.SYSTEM,
-                )
-            )
-            self.session.commit()
-        except SQLAlchemyError as exc:
-            self.session.rollback()
-            raise ComplaintPersistenceError("Unable to persist complaint.") from exc
-
-        persisted = self.repository.get_by_id(complaint.id)
-        if persisted is None:
-            raise ComplaintPersistenceError("Complaint was committed but could not be reloaded.")
-        return persisted
+        return ComplaintSaveService(self.session).save(request)
 
     def get(self, complaint_id: int) -> Complaint:
         """Load one complaint or raise a domain-level not-found error."""
@@ -131,6 +62,18 @@ class ComplaintService:
         """Load a paginated complaint collection."""
 
         return self.repository.list(offset=offset, limit=limit)
+
+    def list_audit_logs(self, complaint_id: int):
+        """Return chronological audit history for an existing complaint."""
+
+        self.get(complaint_id)
+        return self.repository.list_audit_logs(complaint_id)
+
+    def list_assessments(self, complaint_id: int):
+        """Return all assessment snapshots, newest first."""
+
+        self.get(complaint_id)
+        return self.repository.list_assessments(complaint_id)
 
 
 def to_complaint_response(complaint: Complaint) -> ComplaintResponse:

@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import complaintReducer, {
   EMPTY_COMPLAINT,
+  addPendingAuditEvent,
+  clearPendingAuditEvents,
   resetComplaintState,
+  setAuditEvents,
   setChangedFields,
   setComplaint,
   setRiskAssessment,
@@ -41,14 +44,28 @@ describe('complaintSlice', () => {
     }))
     state = complaintReducer(state, setRiskAssessment(assessment))
     state = complaintReducer(state, setChangedFields(['product_name']))
+    state = complaintReducer(state, addPendingAuditEvent({ action: 'AI_COMPLAINT_CREATED' }))
+    state = complaintReducer(state, setAuditEvents([{ action: 'COMPLAINT_SAVED' }]))
 
     state = complaintReducer(state, resetComplaintState())
 
     expect(state.complaint).toEqual(EMPTY_COMPLAINT)
     expect(state.riskAssessment).toBeNull()
     expect(state.changedFields).toEqual([])
+    expect(state.pendingAuditEvents).toEqual([])
+    expect(state.auditEvents).toEqual([])
     expect(state.savedComplaint).toBeNull()
     expect(state.saveStatus).toBe('idle')
     expect(state.saveError).toBeNull()
+  })
+
+  it('supports adding and clearing pending audit events independently', () => {
+    let state = complaintReducer(undefined, addPendingAuditEvent({
+      action: 'AI_EDITED_FIELD',
+      field_name: 'quantity_affected',
+    }))
+    state = complaintReducer(state, clearPendingAuditEvents())
+
+    expect(state.pendingAuditEvents).toEqual([])
   })
 })

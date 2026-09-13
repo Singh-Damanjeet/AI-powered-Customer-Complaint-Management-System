@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -19,6 +19,14 @@ class AIAssessment(Base):
     """Immutable assessment result associated with a complaint."""
 
     __tablename__ = "ai_assessments"
+    __table_args__ = (
+        Index(
+            "ix_ai_assessments_complaint_created",
+            "complaint_id",
+            "created_at",
+            "id",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     complaint_id: Mapped[int] = mapped_column(

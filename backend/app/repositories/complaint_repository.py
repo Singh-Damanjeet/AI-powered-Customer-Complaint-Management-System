@@ -70,3 +70,23 @@ class ComplaintRepository:
             .limit(1)
         )
         return self.session.scalar(statement)
+
+    def list_audit_logs(self, complaint_id: int) -> list[ComplaintAuditLog]:
+        """Return immutable audit events in chronological order."""
+
+        statement = (
+            select(ComplaintAuditLog)
+            .where(ComplaintAuditLog.complaint_id == complaint_id)
+            .order_by(ComplaintAuditLog.created_at.asc(), ComplaintAuditLog.id.asc())
+        )
+        return list(self.session.scalars(statement).all())
+
+    def list_assessments(self, complaint_id: int) -> list[AIAssessment]:
+        """Return all assessment snapshots, newest first."""
+
+        statement = (
+            select(AIAssessment)
+            .where(AIAssessment.complaint_id == complaint_id)
+            .order_by(AIAssessment.created_at.desc(), AIAssessment.id.desc())
+        )
+        return list(self.session.scalars(statement).all())

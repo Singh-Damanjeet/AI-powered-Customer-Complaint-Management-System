@@ -34,6 +34,18 @@ export async function saveComplaint(payload) {
   return response.data
 }
 
+export async function getComplaintAudit(complaintId) {
+  const response = await apiClient.get(`/complaints/${encodeURIComponent(complaintId)}/audit`)
+  return response.data
+}
+
+export async function getComplaintAssessments(complaintId) {
+  const response = await apiClient.get(
+    `/complaints/${encodeURIComponent(complaintId)}/assessments`,
+  )
+  return response.data
+}
+
 export function getApiErrorMessage(error, fallback = 'Unable to reach the server.') {
   if (!error?.response) {
     if (error?.request) {

@@ -2,7 +2,7 @@
 
 Foundation for an AI-powered customer complaint management system for pharmaceutical API/FDF manufacturing.
 
-This repository contains the no-Docker Phase 0 foundation, Phase 1 domain contracts, Phase 2 persistence/API layer, Phase 3 Groq structured-output service, the Phase 4 in-memory log complaint/risk-assessment workflow, the Phase 5 LangGraph orchestration layer, the Phase 6 in-memory natural-language edit workflow, the Phase 7 document intake workflow, and the Phase 8 Redux-powered frontend AI workspace.
+This repository contains the no-Docker Phase 0 foundation, Phase 1 domain contracts, Phase 2 persistence/API layer, Phase 3 Groq structured-output service, the Phase 4 in-memory log complaint/risk-assessment workflow, the Phase 5 LangGraph orchestration layer, the Phase 6 in-memory natural-language edit workflow, the Phase 7 document intake workflow, the Phase 8 Redux-powered frontend AI workspace, and the Phase 9 transactional save and audit history workflow.
 
 ## Architecture
 
@@ -180,5 +180,22 @@ The returned complaint can be sent back to `POST /api/agent/message` for a natur
 - Saving is explicit through `POST /api/complaints`; AI interactions never
   persist automatically.
 - Frontend unit/component tests are available with `npm test`.
+
+## Phase 9 scope
+
+- Explicit save requests use the typed nested `{ complaint, risk_assessment,
+  audit_events }` contract; legacy flat complaint payloads remain accepted for
+  compatibility.
+- Complaint number generation produces unique readable `CMP-YYYY-NNNN`
+  identifiers backed by the database uniqueness constraint.
+- Complaint, latest assessment, pending AI audit events, and
+  `COMPLAINT_SAVED` are committed in one transaction.
+- `GET /api/complaints/{id}/audit` returns chronological append-only audit
+  history, and `GET /api/complaints/{id}/assessments` returns all assessment
+  snapshots newest first.
+- The frontend keeps creation, field-edit, risk-reassessment, and document
+  extraction events in Redux until an explicit save. After saving, the session
+  is locked until Reset/New Complaint so a second click cannot create a
+  duplicate complaint.
 
 Docker is not required or included in this repository. There is no `docker-compose.yml` or `Dockerfile`.

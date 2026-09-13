@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import Button from '../common/Button'
 
-export default function ChatInput({ onSubmit, disabled = false }) {
+export default function ChatInput({ onSubmit, disabled = false, locked = false }) {
   const [draft, setDraft] = useState('')
 
   const handleSubmit = (event) => {
@@ -17,6 +17,7 @@ export default function ChatInput({ onSubmit, disabled = false }) {
     <form className="chat-input" onSubmit={handleSubmit}>
       <label className="sr-only" htmlFor="copilot-message">AI Copilot message</label>
       <textarea
+        disabled={disabled}
         id="copilot-message"
         name="copilot-message"
         onChange={(event) => setDraft(event.target.value)}
@@ -27,7 +28,7 @@ export default function ChatInput({ onSubmit, disabled = false }) {
       <div className="chat-input-footer">
         <span>Facts are populated by AI and remain read-only.</span>
         <Button disabled={disabled || !draft.trim()} type="submit">
-          {disabled ? 'Processing…' : 'Send'}
+          {locked ? 'Saved' : disabled ? 'Processing…' : 'Send'}
           <span aria-hidden="true">↑</span>
         </Button>
       </div>

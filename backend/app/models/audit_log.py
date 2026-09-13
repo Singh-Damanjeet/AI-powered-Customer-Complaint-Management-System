@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -17,6 +17,14 @@ class ComplaintAuditLog(Base):
     """Immutable history record for a complaint event or field change."""
 
     __tablename__ = "complaint_audit_logs"
+    __table_args__ = (
+        Index(
+            "ix_complaint_audit_logs_complaint_created",
+            "complaint_id",
+            "created_at",
+            "id",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     complaint_id: Mapped[int] = mapped_column(

@@ -226,6 +226,12 @@ label:has(input:focus-visible) {
   gap: 1.25rem;
 }
 
+.record-stack {
+  display: grid;
+  min-width: 0;
+  gap: 1.25rem;
+}
+
 .record-card,
 .copilot-card,
 .risk-card {
@@ -403,6 +409,17 @@ label:has(input:focus-visible) {
 .save-error {
   color: #b34f5e;
   font-weight: 600;
+}
+
+.save-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.save-hint {
+  color: #7f8999;
+  font-size: 0.61rem;
 }
 
 .record-action-buttons {
@@ -969,6 +986,174 @@ label:has(input:focus-visible) {
   font-weight: 700;
   line-height: 1.45;
   text-align: center;
+}
+
+.audit-card {
+  min-width: 0;
+  padding: 1.35rem 1.5rem 1.45rem;
+  border: 1px solid var(--line);
+  border-radius: 1.05rem;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.audit-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.audit-card-header h2 {
+  margin: 0.35rem 0 0.3rem;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.audit-card-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+.audit-state {
+  flex: 0 0 auto;
+  padding: 0.36rem 0.58rem;
+  border: 1px solid #dfe2f2;
+  border-radius: 999px;
+  color: #6669b7;
+  background: #fafaff;
+  font-size: 0.59rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.audit-state--saved {
+  border-color: #cfe6dc;
+  color: #3d886c;
+  background: #f1fbf6;
+}
+
+.audit-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 1rem;
+  padding: 0.8rem;
+  border: 1px solid #edf0f4;
+  border-radius: 0.6rem;
+  color: #8e98a7;
+  background: #fcfdff;
+  font-size: 0.67rem;
+}
+
+.audit-empty p {
+  margin: 0;
+}
+
+.audit-events {
+  position: relative;
+  display: grid;
+  gap: 0;
+  margin: 1.05rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.audit-events::before {
+  position: absolute;
+  top: 0.55rem;
+  bottom: 0.55rem;
+  left: 0.25rem;
+  width: 1px;
+  background: #e2e5ed;
+  content: '';
+}
+
+.audit-event {
+  position: relative;
+  display: grid;
+  grid-template-columns: 0.55rem minmax(0, 1fr);
+  gap: 0.8rem;
+  padding: 0.1rem 0 1.05rem;
+}
+
+.audit-event:last-child {
+  padding-bottom: 0;
+}
+
+.audit-event-marker {
+  z-index: 1;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-top: 0.26rem;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: #7474d4;
+  box-shadow: 0 0 0 1px #c9cbea;
+}
+
+.audit-event-body {
+  min-width: 0;
+}
+
+.audit-event-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  color: #929baa;
+  font-size: 0.57rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.audit-event-meta span {
+  color: #6669b7;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.audit-event-body > strong {
+  display: block;
+  margin-top: 0.2rem;
+  color: #424c61;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.audit-event-change,
+.audit-event-detail {
+  display: block;
+  margin-top: 0.28rem;
+  overflow-wrap: anywhere;
+  color: #727d8d;
+  font-size: 0.64rem;
+  line-height: 1.45;
+}
+
+.audit-event-change {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.audit-event-change strong {
+  color: #8a93a1;
+  font-size: 0.6rem;
+}
+
+.audit-event-arrow {
+  color: #898ddd;
+  font-weight: 800;
 }
 
 .app-footer {

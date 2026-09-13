@@ -15,9 +15,14 @@ from app.schemas.agent import AgentMessageRequest
 from app.schemas.ai import LogComplaintRequest
 from app.schemas.persistence import (
     AIAssessmentResponse,
+    AuditEventCreate,
+    AuditLogCollectionResponse,
+    AuditLogResponse,
     ComplaintCreateRequest,
     ComplaintRead,
     ComplaintResponse,
+    ComplaintSaveRequest,
+    SavedComplaintResponse,
 )
 from app.schemas.risk import RiskSignalAnalysis, RiskSignals
 
@@ -25,6 +30,7 @@ __all__ = [
     "ComplaintAgentResponse",
     "AgentMessageRequest",
     "ComplaintCreateRequest",
+    "ComplaintSaveRequest",
     "ComplaintData",
     "ComplaintPatch",
     "ComplaintRead",
@@ -33,6 +39,10 @@ __all__ = [
     "ComplaintStatus",
     "AuditSource",
     "AIAssessmentResponse",
+    "AuditEventCreate",
+    "AuditLogCollectionResponse",
+    "AuditLogResponse",
+    "SavedComplaintResponse",
     "Priority",
     "ProductType",
     "RiskAssessment",

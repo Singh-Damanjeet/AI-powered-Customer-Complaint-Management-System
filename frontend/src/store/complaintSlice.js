@@ -28,10 +28,17 @@ const normalizeComplaint = (complaint) => ({
   ...(complaint && typeof complaint === 'object' ? complaint : {}),
 })
 
+const normalizeAuditEvents = (events) =>
+  Array.isArray(events)
+    ? events.filter((event) => event && typeof event === 'object')
+    : []
+
 const initialState = {
   complaint: createEmptyComplaint(),
   riskAssessment: null,
   changedFields: [],
+  pendingAuditEvents: [],
+  auditEvents: [],
   savedComplaint: null,
   saveStatus: 'idle',
   saveError: null,
@@ -51,6 +58,23 @@ const complaintSlice = createSlice({
       state.changedFields = Array.isArray(action.payload)
         ? action.payload.filter((fieldName) => typeof fieldName === 'string')
         : []
+    },
+    addPendingAuditEvent(state, action) {
+      if (action.payload && typeof action.payload === 'object') {
+        state.pendingAuditEvents.push(action.payload)
+      }
+    },
+    addPendingAuditEvents(state, action) {
+      state.pendingAuditEvents.push(...normalizeAuditEvents(action.payload))
+    },
+    clearPendingAuditEvents(state) {
+      state.pendingAuditEvents = []
+    },
+    setAuditEvents(state, action) {
+      state.auditEvents = normalizeAuditEvents(action.payload)
+    },
+    clearAuditEvents(state) {
+      state.auditEvents = []
     },
     clearComplaint(state) {
       state.complaint = createEmptyComplaint()
@@ -75,9 +99,14 @@ const complaintSlice = createSlice({
 
 export const {
   clearComplaint,
+  clearAuditEvents,
+  clearPendingAuditEvents,
+  addPendingAuditEvent,
+  addPendingAuditEvents,
   resetComplaintState,
   setChangedFields,
   setComplaint,
+  setAuditEvents,
   setRiskAssessment,
   setSaveError,
   setSavedComplaint,
