@@ -21,6 +21,7 @@ class ComplaintGraphState(TypedDict, total=False):
     document_filename: str
     document_content: bytes | None
     risk_assessment: dict[str, Any]
+    ai_insights: dict[str, Any]
     assistant_message: str
     changed_fields: list[str]
     errors: list[str]

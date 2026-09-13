@@ -36,6 +36,7 @@ const normalizeAuditEvents = (events) =>
 const initialState = {
   complaint: createEmptyComplaint(),
   riskAssessment: null,
+  aiInsights: null,
   changedFields: [],
   pendingAuditEvents: [],
   auditEvents: [],
@@ -53,6 +54,9 @@ const complaintSlice = createSlice({
     },
     setRiskAssessment(state, action) {
       state.riskAssessment = action.payload || null
+    },
+    setAiInsights(state, action) {
+      state.aiInsights = action.payload || null
     },
     setChangedFields(state, action) {
       state.changedFields = Array.isArray(action.payload)
@@ -107,6 +111,7 @@ export const {
   setChangedFields,
   setComplaint,
   setAuditEvents,
+  setAiInsights,
   setRiskAssessment,
   setSaveError,
   setSavedComplaint,

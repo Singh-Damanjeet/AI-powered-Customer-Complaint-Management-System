@@ -1,14 +1,19 @@
 """AI-assisted complaint operations."""
 
 from collections.abc import Awaitable, Callable
+from collections.abc import Generator
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from sqlalchemy.orm import Session
 
 from app.services.complaint_graph_service import (
     ComplaintGraphService,
     ComplaintWorkflowError,
     UnsupportedComplaintIntentError,
 )
+from app.services.complaint_insights_service import ComplaintInsightsService
+from app.config import get_settings
+from app.database.session import get_session_factory
 from app.schemas.agent import AgentMessageRequest
 from app.schemas.ai import LogComplaintRequest
 from app.schemas.complaint import ComplaintAgentResponse
@@ -36,6 +41,12 @@ from app.services.log_complaint_service import LogComplaintService
 router = APIRouter(prefix="/ai", tags=["ai"])
 agent_router = APIRouter(prefix="/agent", tags=["agent"])
 
+# Starlette renamed these constants; numeric fallbacks keep the API compatible
+# with the minimum supported FastAPI/Starlette versions without emitting a
+# deprecation warning during normal requests.
+HTTP_422_UNPROCESSABLE_CONTENT = getattr(status, "HTTP_422_UNPROCESSABLE_CONTENT", 422)
+HTTP_413_CONTENT_TOO_LARGE = getattr(status, "HTTP_413_CONTENT_TOO_LARGE", 413)
+
 
 def get_log_complaint_service() -> LogComplaintService:
     """Build the unsaved log complaint service for one request."""
@@ -43,8 +54,34 @@ def get_log_complaint_service() -> LogComplaintService:
     return LogComplaintService()
 
 
+def get_optional_db() -> Generator[Session | None, None, None]:
+    """Yield a DB session when configured without making AI intake depend on it.
+
+    The core log/edit/document workflow is intentionally usable without a
+    database in local development and in existing API tests. Duplicate
+    detection simply returns no matches when no database is configured.
+    """
+
+    if not get_settings().database_url:
+        yield None
+        return
+
+    try:
+        session_factory = get_session_factory()
+        database = session_factory()
+    except Exception:
+        yield None
+        return
+
+    try:
+        yield database
+    finally:
+        database.close()
+
+
 def get_complaint_graph_service(
     service: LogComplaintService = Depends(get_log_complaint_service),
+    database: Session | None = Depends(get_optional_db),
 ) -> ComplaintGraphService:
     """Build the graph service while retaining Phase 4 service injection.
 
@@ -54,14 +91,27 @@ def get_complaint_graph_service(
     API tests remain valid while the endpoint still invokes LangGraph.
     """
 
+    # Direct callers can invoke this dependency as a regular function; in
+    # that case FastAPI's Depends marker is not a real session.
+    resolved_database = database if isinstance(database, Session) else None
     if isinstance(service, LogComplaintService):
         return ComplaintGraphService(
             extraction_service=service.extraction_service,
             risk_service=service.risk_service,
             edit_service=EditComplaintService(groq_service=service.groq_service),
             groq_service=service.groq_service,
+            insights_service=ComplaintInsightsService(
+                session=resolved_database,
+                groq_service=service.groq_service,
+            ),
         )
-    return ComplaintGraphService(legacy_log_service=service)
+    return ComplaintGraphService(
+        legacy_log_service=service,
+        insights_service=ComplaintInsightsService(
+            session=resolved_database,
+            groq_service=getattr(service, "groq_service", None),
+        ),
+    )
 
 
 async def _run_graph_operation(
@@ -73,15 +123,15 @@ async def _run_graph_operation(
         return await operation()
     except UnsupportedComplaintIntentError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
     except ComplaintWorkflowError as exc:
         error_status = {
             "AI_UNAVAILABLE": status.HTTP_503_SERVICE_UNAVAILABLE,
             "AI_RESPONSE_INVALID": status.HTTP_502_BAD_GATEWAY,
-            "INVALID_INPUT": status.HTTP_422_UNPROCESSABLE_ENTITY,
-            "INVALID_COMPLAINT": status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "INVALID_INPUT": HTTP_422_UNPROCESSABLE_CONTENT,
+            "INVALID_COMPLAINT": HTTP_422_UNPROCESSABLE_CONTENT,
         }.get(exc.code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         raise HTTPException(
             status_code=error_status,
@@ -92,7 +142,7 @@ async def _run_graph_operation(
         raise
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
     except (GroqConfigurationError, GroqProviderError) as exc:
@@ -151,7 +201,7 @@ async def _run_document_request(
         ) from exc
     except DocumentTooLargeError as exc:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=HTTP_413_CONTENT_TOO_LARGE,
             detail=str(exc),
         ) from exc
     except (
@@ -161,7 +211,7 @@ async def _run_document_request(
         DocumentParserError,
     ) as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
     except DocumentParserConfigurationError as exc:
@@ -182,7 +232,7 @@ async def agent_document(
         content = await file.read(MAX_DOCUMENT_SIZE_BYTES + 1)
     except Exception as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Uploaded document could not be read.",
         ) from exc
     return await _run_document_request(graph_service, file.filename or "", content)
@@ -214,6 +264,7 @@ async def agent_message(
 
 __all__ = [
     "get_complaint_graph_service",
+    "get_optional_db",
     "get_log_complaint_service",
     "agent_message",
     "agent_document",

@@ -22,6 +22,11 @@ from app.agents.nodes.extract_document import (
     make_extract_document_node,
 )
 from app.agents.nodes.generate_response import generate_response_node
+from app.agents.nodes.generate_insights import (
+    generate_insights,
+    generate_insights_node,
+    make_generate_insights_node,
+)
 from app.agents.nodes.log_complaint import (
     log_complaint,
     log_complaint_node,
@@ -40,11 +45,14 @@ __all__ = [
     "extract_document",
     "extract_document_node",
     "generate_response_node",
+    "generate_insights",
+    "generate_insights_node",
     "log_complaint_node",
     "log_complaint",
     "make_edit_complaint_node",
     "make_extract_complaint_from_document_node",
     "make_extract_document_node",
+    "make_generate_insights_node",
     "make_assess_risk_node",
     "make_log_complaint_node",
     "validate_complaint_node",

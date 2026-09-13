@@ -14,6 +14,7 @@ from app.agents.nodes.extract_complaint_from_document import (
 )
 from app.agents.nodes.extract_document import make_extract_document_node
 from app.agents.nodes.generate_response import generate_response_node
+from app.agents.nodes.generate_insights import make_generate_insights_node
 from app.agents.nodes.log_complaint import make_log_complaint_node
 from app.agents.nodes.unsupported import (
     unsupported_for_now_node,
@@ -44,6 +45,7 @@ def build_complaint_graph(
     document_parser_service: Any | None = None,
     groq_service: GroqService | None = None,
     legacy_log_service: Any | None = None,
+    insights_service: Any | None = None,
 ):
     """Build and compile one complaint graph with injected service objects.
 
@@ -96,6 +98,10 @@ def build_complaint_graph(
         make_assess_risk_node(risk_service, groq_service=groq_service),
     )
     builder.add_node("generate_response", generate_response_node)
+    builder.add_node(
+        "generate_insights",
+        make_generate_insights_node(insights_service),
+    )
     builder.add_node("unsupported_for_now", unsupported_for_now_node)
     builder.add_node("unsupported_request", unsupported_request_node)
     builder.add_node("workflow_error", workflow_error_node)
@@ -150,6 +156,7 @@ def build_complaint_graph(
         route_after_validate,
         {
             "assess_risk": "assess_risk",
+            "generate_insights": "generate_insights",
             "generate_response": "generate_response",
             "workflow_error": "workflow_error",
         },
@@ -158,10 +165,11 @@ def build_complaint_graph(
         "assess_risk",
         route_after_assess,
         {
-            "generate_response": "generate_response",
+            "generate_insights": "generate_insights",
             "workflow_error": "workflow_error",
         },
     )
+    builder.add_edge("generate_insights", "generate_response")
     builder.add_edge("generate_response", END)
     builder.add_edge("unsupported_for_now", END)
     builder.add_edge("unsupported_request", END)

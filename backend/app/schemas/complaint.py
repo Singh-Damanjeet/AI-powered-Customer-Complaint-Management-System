@@ -7,6 +7,8 @@ from typing import Annotated, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
+from app.schemas.insights import ComplaintAIInsights
+
 
 NonEmptyText: TypeAlias = Annotated[
     str,
@@ -137,3 +139,4 @@ class ComplaintAgentResponse(BaseModel):
     risk_assessment: RiskAssessment
     assistant_message: str = ""
     changed_fields: list[str] = Field(default_factory=list)
+    ai_insights: ComplaintAIInsights | None = None

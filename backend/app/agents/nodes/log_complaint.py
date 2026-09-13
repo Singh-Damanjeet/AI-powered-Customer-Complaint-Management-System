@@ -36,13 +36,16 @@ async def log_complaint_node(
             response = ComplaintAgentResponse.model_validate(result)
             complaint = response.complaint
             logger.info("LangGraph node=log_complaint completed via compatibility service")
-            return {
+            result_state = {
                 "complaint": complaint.model_dump(mode="json"),
                 "risk_assessment": response.risk_assessment.model_dump(mode="json"),
                 "assistant_message": response.assistant_message,
                 "changed_fields": list(response.changed_fields),
                 "legacy_processed": True,
             }
+            if response.ai_insights is not None:
+                result_state["ai_insights"] = response.ai_insights.model_dump(mode="json")
+            return result_state
 
         service = extraction_service or ComplaintExtractionService(groq_service)
         extracted = await maybe_await(service.extract(message))

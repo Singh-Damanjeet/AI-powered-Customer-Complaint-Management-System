@@ -2,10 +2,12 @@ import ChatInput from './ChatInput'
 import ChatMessages from './ChatMessages'
 import DocumentUpload from './DocumentUpload'
 import ProcessingStatus from './ProcessingStatus'
+import AIInsightsPanel from '../insights/AIInsightsPanel'
 import RiskAssessmentCard from '../risk/RiskAssessmentCard'
 
 export default function CopilotPanel({
   error,
+  insights,
   isProcessing,
   isSaved = false,
   messages,
@@ -53,6 +55,7 @@ export default function CopilotPanel({
       </section>
 
       <RiskAssessmentCard assessment={riskAssessment} />
+      <AIInsightsPanel insights={insights} />
     </div>
   )
 }

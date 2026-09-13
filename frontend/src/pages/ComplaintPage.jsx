@@ -10,7 +10,9 @@ export default function ComplaintPage() {
   const complaintState = useSelector((state) => state.complaint)
   const copilotState = useSelector((state) => state.copilot)
   const {
+    canSave,
     isProcessing,
+    isSaving,
     isSaved,
     resetWorkspace,
     saveCurrentComplaint,
@@ -83,15 +85,20 @@ export default function ComplaintPage() {
                 )}
               </div>
               <div className="record-action-buttons">
-                <Button disabled={isProcessing} onClick={resetWorkspace} type="button" variant="secondary">
+                <Button
+                  disabled={isProcessing || isSaving}
+                  onClick={resetWorkspace}
+                  type="button"
+                  variant="secondary"
+                >
                   Reset
                 </Button>
                 <Button
-                  disabled={isProcessing || isSaved || complaintState.saveStatus === 'saving'}
+                  disabled={!canSave}
                   onClick={saveCurrentComplaint}
                   type="button"
                 >
-                  {isSaved ? 'Saved' : complaintState.saveStatus === 'saving' ? 'Saving…' : 'Save Complaint'}
+                  {isSaved ? 'Saved' : isSaving ? 'Saving complaint…' : 'Save Complaint'}
                 </Button>
               </div>
             </div>
@@ -106,6 +113,7 @@ export default function ComplaintPage() {
         <aside aria-label="AI complaint copilot">
           <CopilotPanel
             error={copilotState.error}
+            insights={complaintState.aiInsights}
             isProcessing={isProcessing}
             isSaved={isSaved}
             messages={copilotState.messages}

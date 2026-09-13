@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from app.agents.graph import build_complaint_graph
 from app.agents.state import ComplaintGraphState, initial_complaint_graph_state
 from app.schemas.complaint import ComplaintAgentResponse, ComplaintData, RiskAssessment
+from app.schemas.insights import ComplaintAIInsights
 from app.services.ai_errors import AIResponseValidationError
 from app.services.document_parser import (
     DocumentParserConfigurationError,
@@ -74,6 +75,7 @@ class ComplaintGraphService:
         document_complaint_service: Any | None = None,
         groq_service: Any | None = None,
         legacy_log_service: Any | None = None,
+        insights_service: Any | None = None,
     ) -> None:
         resolved_parser = document_parser_service
         if resolved_parser is None and document_complaint_service is not None:
@@ -95,6 +97,7 @@ class ComplaintGraphService:
             document_parser_service=self.document_parser_service,
             groq_service=groq_service,
             legacy_log_service=legacy_log_service,
+            insights_service=insights_service,
         )
 
     async def _invoke_state(
@@ -169,11 +172,23 @@ class ComplaintGraphService:
                 isinstance(field_name, str) for field_name in changed_fields
             ):
                 raise ValueError("changed_fields must be a list of strings.")
+            ai_insights = None
+            raw_ai_insights = state.get("ai_insights")
+            if raw_ai_insights is not None:
+                try:
+                    ai_insights = ComplaintAIInsights.model_validate(raw_ai_insights)
+                except (ValidationError, TypeError, ValueError):
+                    # Optional insight output must never invalidate the core
+                    # complaint/risk response.
+                    logger.warning(
+                        "Complaint graph returned invalid optional insights; omitting them."
+                    )
             response = ComplaintAgentResponse(
                 complaint=complaint,
                 risk_assessment=risk_assessment,
                 assistant_message=assistant_message,
                 changed_fields=changed_fields,
+                ai_insights=ai_insights,
             )
         except (ValidationError, ValueError, TypeError) as exc:
             logger.error(

@@ -6,6 +6,7 @@ import complaintReducer, {
   clearPendingAuditEvents,
   resetComplaintState,
   setAuditEvents,
+  setAiInsights,
   setChangedFields,
   setComplaint,
   setRiskAssessment,
@@ -35,6 +36,23 @@ describe('complaintSlice', () => {
 
     expect(state.riskAssessment).toEqual(assessment)
     expect(state.changedFields).toEqual(['batch_lot_number', 'quantity_affected'])
+  })
+
+  it('stores optional AI insights and reset clears them', () => {
+    const insights = {
+      completeness: {
+        score: 82,
+        status: 'MOSTLY_COMPLETE',
+        missing_fields: ['expiry_date'],
+        missing_critical_fields: [],
+        message: 'Some details are still missing.',
+      },
+    }
+    let state = complaintReducer(undefined, setAiInsights(insights))
+
+    expect(state.aiInsights).toEqual(insights)
+    state = complaintReducer(state, resetComplaintState())
+    expect(state.aiInsights).toBeNull()
   })
 
   it('reset clears the working complaint, risk, changed fields, and save state', () => {

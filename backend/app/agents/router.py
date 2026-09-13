@@ -199,14 +199,14 @@ def route_after_validate(state: ComplaintGraphState) -> str:
     if state.get("errors"):
         return "workflow_error"
     if state.get("legacy_processed") and state.get("risk_assessment"):
-        return "generate_response"
+        return "generate_insights"
     return "assess_risk"
 
 
 def route_after_assess(state: ComplaintGraphState) -> str:
-    """Stop after risk failures; otherwise generate the final response."""
+    """Stop after risk failures; otherwise run optional complaint insights."""
 
-    return "workflow_error" if state.get("errors") else "generate_response"
+    return "workflow_error" if state.get("errors") else "generate_insights"
 
 
 __all__ = [

@@ -14,6 +14,8 @@ backend/.mypy_cache/
 backend/.ruff_cache/
 .coverage
 htmlcov/
+coverage/
+*.lcov
 
 # Node / Vite
 node_modules/
@@ -25,3 +27,9 @@ npm-debug.log*
 *.sqlite3
 .DS_Store
 *.log
+.idea/
+.vscode/
+
+# Local browser-verification artifacts
+.playwright-cli/
+output/playwright/

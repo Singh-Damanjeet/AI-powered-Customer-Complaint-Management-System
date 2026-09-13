@@ -16,6 +16,7 @@ import {
   clearPendingAuditEvents,
   resetComplaintState,
   setAuditEvents,
+  setAiInsights,
   setChangedFields,
   setComplaint,
   setRiskAssessment,
@@ -186,6 +187,7 @@ const applyAgentResponse = (
 
   dispatch(setComplaint(validResponse.complaint))
   dispatch(setRiskAssessment(validResponse.risk_assessment))
+  dispatch(setAiInsights(validResponse.ai_insights || null))
   dispatch(setChangedFields(validResponse.changed_fields || []))
   dispatch(setAuditEvents([]))
   if (auditEvents.length) {
@@ -228,7 +230,10 @@ export function useComplaintWorkflow() {
   const savingRef = useRef(false)
 
   const isProcessing = copilotStatus === 'processing'
+  const isSaving = saveStatus === 'saving'
   const isSaved = Boolean(savedComplaint)
+  const canSave =
+    complaintHasFacts(complaint) && Boolean(riskAssessment) && !isProcessing && !isSaving && !isSaved
 
   const failWorkflow = useCallback(
     (error, fallback) => {
@@ -276,7 +281,7 @@ export function useComplaintWorkflow() {
       const currentComplaint = complaintHasFacts(complaint) ? complaint : null
       return runAgentRequest(
         () => sendAgentMessage(message, currentComplaint),
-        'AI is reading the complaint and assessing risk…',
+        'Analyzing complaint…',
         'The complaint could not be processed. Your current complaint data has been preserved.',
         {
           previousComplaint: complaint,
@@ -313,7 +318,7 @@ export function useComplaintWorkflow() {
       dispatch(setUploadedFileName(file.name))
       return runAgentRequest(
         () => uploadComplaintDocument(file),
-        'Uploading document and extracting complaint details…',
+        'Extracting complaint details…',
         'The document could not be processed. Your current complaint data has been preserved.',
         {
           previousComplaint: complaint,
@@ -327,7 +332,14 @@ export function useComplaintWorkflow() {
   )
 
   const saveCurrentComplaint = useCallback(async () => {
-    if (isProcessing || isSaved || saveStatus === 'saving' || savingRef.current) {
+    if (
+      !complaintHasFacts(complaint) ||
+      !riskAssessment ||
+      isProcessing ||
+      isSaved ||
+      isSaving ||
+      savingRef.current
+    ) {
       return null
     }
 
@@ -391,16 +403,22 @@ export function useComplaintWorkflow() {
     isSaved,
     pendingAuditEvents,
     riskAssessment,
-    saveStatus,
+    isSaving,
   ])
 
   const resetWorkspace = useCallback(() => {
+    if (isSaving || savingRef.current) {
+      return null
+    }
     dispatch(resetComplaintState())
     dispatch(resetCopilot())
-  }, [dispatch])
+    return true
+  }, [dispatch, isSaving])
 
   return {
+    canSave,
     isProcessing,
+    isSaving,
     isSaved,
     resetWorkspace,
     saveCurrentComplaint,

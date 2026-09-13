@@ -25,6 +25,17 @@ from app.schemas.persistence import (
     SavedComplaintResponse,
 )
 from app.schemas.risk import RiskSignalAnalysis, RiskSignals
+from app.schemas.insights import (
+    CAPARecommendations,
+    CompletenessStatus,
+    ComplaintAIInsights,
+    ComplaintCompleteness,
+    ComplaintSummary,
+    DuplicateDetectionResult,
+    DuplicateMatch,
+    InvestigationSuggestion,
+    RootCauseRecommendation,
+)
 
 __all__ = [
     "ComplaintAgentResponse",
@@ -49,4 +60,13 @@ __all__ = [
     "RiskSignalAnalysis",
     "RiskSignals",
     "Severity",
+    "CAPARecommendations",
+    "CompletenessStatus",
+    "ComplaintAIInsights",
+    "ComplaintCompleteness",
+    "ComplaintSummary",
+    "DuplicateDetectionResult",
+    "DuplicateMatch",
+    "InvestigationSuggestion",
+    "RootCauseRecommendation",
 ]

@@ -1,201 +1,320 @@
-# Pharma Complaint AI
+# AI-Powered Customer Complaint Management System
 
-Foundation for an AI-powered customer complaint management system for pharmaceutical API/FDF manufacturing.
+An AI-assisted customer complaint intake workspace for pharmaceutical API and
+finished-dose-form (FDF) manufacturing. The project extracts source-grounded
+facts, reassesses preliminary risk after every change, provides QA-oriented
+insights, and keeps an append-only history when a complaint is explicitly
+saved.
 
-This repository contains the no-Docker Phase 0 foundation, Phase 1 domain contracts, Phase 2 persistence/API layer, Phase 3 Groq structured-output service, the Phase 4 in-memory log complaint/risk-assessment workflow, the Phase 5 LangGraph orchestration layer, the Phase 6 in-memory natural-language edit workflow, the Phase 7 document intake workflow, the Phase 8 Redux-powered frontend AI workspace, and the Phase 9 transactional save and audit history workflow.
+This is a no-Docker assignment/demo project. PostgreSQL is supplied through a
+managed provider such as Neon/Supabase or a locally installed PostgreSQL
+server.
+
+## Overview
+
+The application is designed around one important control: the complaint form
+is read-only. Complaint facts can only be created or modified through the AI
+Copilot or document extraction workflow. A user must explicitly click Save
+Complaint before anything is persisted.
+
+The final workflow demonstrates:
+
+- Log Complaint Tool for natural-language complaint intake.
+- Edit Complaint Tool for sparse, source-grounded natural-language updates.
+- Document Extraction Tool for PDF, DOCX, TXT, and EML intake.
+- Preliminary AI risk assessment with mandatory QA review.
+- Completeness scoring and explainable possible-duplicate detection.
+- Complaint summary, potential investigation areas, and proposed CAPA actions.
+- Explicit persistence, AI assessment snapshots, and an audit timeline.
+
+## Assignment Requirements
+
+The mandatory AI capabilities are implemented as separate workflow tools:
+
+1. `LogComplaintTool` extracts factual fields into `ComplaintData`.
+2. `EditComplaintTool` returns a sparse `ComplaintPatch`; omitted fields are
+   never used to erase existing state.
+3. `DocumentExtractionTool` reuses the same factual extraction contract after
+   the uploaded document has been parsed.
+
+Every log, edit, or document extraction request runs risk assessment again.
+Unknown factual information remains `null`; risk classification and proposed
+actions may be inferred only as preliminary AI recommendations.
+
+## Features
+
+- Read-only AI-controlled complaint record with highlighted changed fields.
+- AI Copilot for log and edit messages.
+- In-memory document upload for PDF, DOCX, TXT, and EML files.
+- Negation-aware pharmaceutical risk signals, including adverse-event signals.
+- Risk severity and priority cards with QA disclaimer.
+- Deterministic completeness score from 0–100.
+- Explainable `Possible Duplicate` matches against saved complaints.
+- Concise factual summary, potential investigation areas, and three CAPA
+  recommendation sections.
+- Transactional save of the complaint, risk snapshot, and audit events.
+- Persisted complaint history and assessment history endpoints.
+- Friendly handling for unavailable AI, invalid model output, bad files, and
+  database failures.
 
 ## Architecture
 
+```mermaid
+flowchart TD
+    UI[React + Redux Toolkit] --> API[FastAPI]
+    API --> GRAPH[LangGraph]
+    GRAPH --> LOG[Log Complaint Tool]
+    GRAPH --> EDIT[Edit Complaint Tool]
+    GRAPH --> DOC[Document Extraction Tool]
+    LOG --> RISK[Risk Assessment]
+    EDIT --> RISK
+    DOC --> RISK
+    RISK --> INSIGHTS[Completeness + Optional AI Insights]
+    INSIGHTS --> GROQ[Groq structured output]
+    API --> DB[(PostgreSQL via SQLAlchemy)]
+```
+
+The graph owns request orchestration. Groq calls are made only through the
+reusable `GroqService` and its async adapter; business logic does not call the
+Groq SDK directly. SQLAlchemy models are separate from the Pydantic API
+contracts, and Alembic owns database schema creation.
+
+## Mandatory AI Tools
+
+### Log Complaint Tool
+
+`backend/app/agents/tools/log_complaint.py` and
+`backend/app/services/complaint_extraction_service.py` extract only facts
+explicitly present in the narrative. The workflow then validates the
+complaint and runs `RiskService` without saving.
+
+### Edit Complaint Tool
+
+`backend/app/agents/tools/edit_complaint.py` returns only explicitly requested
+fields as `ComplaintPatch`. `backend/app/services/complaint_merge_service.py`
+applies `exclude_unset=True`, so omitted fields remain unchanged and explicit
+`null` is reserved for a clear request.
+
+### Document Extraction Tool
+
+`backend/app/services/document_parser.py` parses supported files in memory.
+`backend/app/agents/tools/document_extraction.py` sends the normalized text to
+the shared factual extraction service. Scanned PDFs are reported as requiring
+OCR; production OCR is outside this assignment.
+
+## LangGraph Workflow
+
 ```text
-pharma-complaint-ai/
-├── frontend/
-├── backend/
-├── sample_documents/
-├── .env.example
-├── .gitignore
-└── README.md
+START
+  ↓
+classify_intent
+  ├── LOG       → log_complaint
+  ├── EDIT      → edit_complaint
+  └── DOCUMENT  → extract_document → extract_complaint_from_document
+                         ↓
+                    validate_complaint
+                         ↓
+                    assess_risk
+                         ↓
+                    generate_insights
+                         ↓
+                    generate_response
+                         ↓
+                        END
 ```
 
-## Prerequisites
+Unrelated messages and unsupported requests terminate with a safe response.
+The API routes call `ComplaintGraphService`, which invokes the compiled graph
+for log, edit, and document operations.
 
-- Node.js 20 or newer and npm
-- Python 3.11 or newer
-- PostgreSQL 14 or newer installed locally, or a managed PostgreSQL database from a provider such as Neon or Supabase
+## Tech Stack
 
-## Local setup
+- React and Vite
+- Redux Toolkit and React Redux
+- Axios
+- Python FastAPI and Uvicorn
+- LangGraph
+- Groq Python SDK
+- PostgreSQL
+- SQLAlchemy 2 and Alembic
+- Pydantic v2 / pydantic-settings
+- PyMuPDF, python-docx, and Python standard-library email parsing
+- Google Inter font
 
-1. Copy the environment template:
+## Setup
 
-   ```bash
-   cp .env.example .env
-   ```
+Prerequisites:
 
-   Set `DATABASE_URL` to your managed-provider or local PostgreSQL connection string. Use the `psycopg` SQLAlchemy driver prefix, for example:
+- Node.js 20 or newer and npm.
+- Python 3.11 or newer.
+- PostgreSQL 14 or newer, locally installed or provided by a managed service.
 
-   ```ini
-   DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:5432/DATABASE_NAME
-   ```
-
-   For managed providers that require TLS, append `?sslmode=require` to the URL. Configure `GROQ_API_KEY` and `GROQ_MODEL` when using the Phase 3 service; never commit the resulting `.env` file.
-
-2. Install backend dependencies, run migrations, and start FastAPI:
-
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r backend/requirements.txt
-   cd backend
-   alembic upgrade head
-   uvicorn app.main:app --reload
-   ```
-
-   The API is available at `http://localhost:8000`.
-
-3. Install frontend dependencies and start Vite in a second terminal:
-
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
-
-   The frontend is available at `http://localhost:5173`.
-
-   The frontend defaults to `http://localhost:8000/api` for the backend. To
-   override it, set `VITE_API_BASE_URL` in `frontend/.env`.
-
-## Foundation endpoint
-
-```http
-GET http://localhost:8000/api/health
-```
-
-Response:
-
-```json
-{
-  "status": "ok",
-  "database": "connected"
-}
-```
-
-The health check executes `SELECT 1` against `DATABASE_URL`. If the database is not configured or unavailable, it returns HTTP 503.
-
-## Phase 0 scope
-
-- React/Vite frontend shell with Redux Toolkit, React Redux, Axios, and Google Inter font loading.
-- FastAPI application with environment-based settings and local-development CORS.
-- SQLAlchemy session foundation and Alembic configuration.
-- Managed or locally installed PostgreSQL connection through `DATABASE_URL`.
-- Database-backed health check at `/api/health`.
-- LangGraph and Groq SDK dependencies available for the structured AI service and later workflows.
-
-## Phase 1 scope
-
-- Typed Pydantic complaint, patch, risk assessment, and agent response contracts.
-- Nullable factual complaint fields for unknown information.
-- Patch serialization that excludes omitted fields from natural-language updates.
-- Validation tests for supported values, malformed risk classifications, and patch semantics.
-
-At the end of Phase 1, no AI calls, document extraction, risk reassessment execution, or manual complaint form had been added.
-
-## Phase 2 scope
-
-- SQLAlchemy models and Alembic migration for complaints, AI assessment snapshots, and audit logs.
-- PostgreSQL JSONB storage for recommended actions.
-- Complaint creation and read/list endpoints under `/api/complaints`.
-- Atomic persistence of a complaint, initial not-assessed snapshot, and creation audit event.
-- Repository/service tests covering reload from a new database session.
-
-The initial assessment uses `Unknown` classifications and `not_assessed` as its model name until a later phase adds AI invocation.
-
-## Phase 3 scope
-
-- Environment-backed, dependency-injected Groq service for JSON Schema responses.
-- Pydantic validation of every structured response returned by Groq.
-- Provider, configuration, empty-response, JSON, and schema-validation error handling.
-- The existing complaint APIs, migrations, and persistence behavior remain unchanged.
-- Complaint edit/document tools are reserved for later phases.
-
-## Phase 4 scope
-
-- Factual natural-language extraction into validated `ComplaintData`.
-- Safe complaint-type, strength, and quantity-unit normalization.
-- Source-grounding that clears unsupported factual values to `null`.
-- Deterministic pharmaceutical risk-signal detection with basic negation handling.
-- Groq-backed preliminary `RiskAssessment` with mandatory QA review.
-- Unsaved `POST /api/ai/log-complaint` endpoint returning `ComplaintAgentResponse`.
-- No automatic PostgreSQL persistence, editing, or document parsing.
-
-## Phase 5 scope
-
-- Typed, serializable `ComplaintGraphState` for in-request LangGraph execution.
-- Deterministic intent routing for log, edit, document, and unknown requests.
-- Compiled log workflow: intent classification, factual extraction, Pydantic validation, risk assessment, and safe response generation.
-- Existing Phase 4 extraction and risk services remain the source of AI business logic.
-- Clean placeholder responses and error handling for unsupported future branches.
-- `POST /api/ai/log-complaint` now executes through LangGraph and still returns an unsaved `ComplaintAgentResponse`.
-- No automatic PostgreSQL persistence or document parsing.
-
-## Phase 6 scope
-
-- Source-grounded `EditComplaintTool` that returns only a sparse `ComplaintPatch`.
-- Safe patch merging that preserves omitted fields and supports explicit `null` clears.
-- Description additions preserve existing complaint context; explicit replacements replace it.
-- LangGraph edit path converging on validation, mandatory risk reassessment, and response generation.
-- `POST /api/agent/message` supports both new complaint logging and edits with caller-supplied current state.
-- No automatic PostgreSQL persistence, document extraction, or frontend AI integration.
-
-## Phase 7 scope
-
-- In-memory PDF, DOCX, TXT, and EML parsing with a 10 MB upload limit.
-- PDF text extraction through PyMuPDF, DOCX paragraph/table extraction through `python-docx`, and standard-library email parsing.
-- Clear handling for unsupported, empty, oversized, corrupt, and textless documents; scanned PDFs report that OCR is not supported.
-- Shared `ComplaintExtractionService` reuse for document factual extraction and grounding.
-- LangGraph document path with validation, mandatory risk assessment, and the existing response contract.
-- `POST /api/agent/document` multipart upload endpoint.
-- Fictional sample documents under `sample_documents/`.
-- No automatic PostgreSQL persistence or OCR; the frontend upload and
-  document-to-edit workflow is implemented in Phase 8.
-
-Document intake is available at:
+Create the backend environment and install dependencies:
 
 ```bash
-curl -X POST http://localhost:8000/api/agent/document \
-  -F "file=@sample_documents/metformin_discoloration.pdf"
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r backend/requirements.txt
 ```
 
-The returned complaint can be sent back to `POST /api/agent/message` for a natural-language edit. Uploaded documents are parsed and assessed in memory; saving remains a separate database operation.
+Create the environment file and fill in the database and Groq settings:
 
-## Phase 8 scope
+```bash
+cp .env.example .env
+```
 
-- Redux Toolkit complaint and AI Copilot slices are the authoritative frontend
-  state.
-- Complaint facts are displayed in a read-only record; users change them only
-  through natural-language Copilot messages or document upload.
-- PDF, DOCX, TXT, and EML uploads call `POST /api/agent/document` and share the
-  same complaint state as chat-driven logging and editing.
-- AI responses replace the complaint and risk assessment in Redux while
-  highlighting the returned `changed_fields`.
-- Saving is explicit through `POST /api/complaints`; AI interactions never
-  persist automatically.
-- Frontend unit/component tests are available with `npm test`.
+Install frontend dependencies in a second terminal:
 
-## Phase 9 scope
+```bash
+cd frontend
+npm install
+```
 
-- Explicit save requests use the typed nested `{ complaint, risk_assessment,
-  audit_events }` contract; legacy flat complaint payloads remain accepted for
-  compatibility.
-- Complaint number generation produces unique readable `CMP-YYYY-NNNN`
-  identifiers backed by the database uniqueness constraint.
-- Complaint, latest assessment, pending AI audit events, and
-  `COMPLAINT_SAVED` are committed in one transaction.
-- `GET /api/complaints/{id}/audit` returns chronological append-only audit
-  history, and `GET /api/complaints/{id}/assessments` returns all assessment
-  snapshots newest first.
-- The frontend keeps creation, field-edit, risk-reassessment, and document
-  extraction events in Redux until an explicit save. After saving, the session
-  is locked until Reset/New Complaint so a second click cannot create a
-  duplicate complaint.
+No Docker configuration is required or included.
 
-Docker is not required or included in this repository. There is no `docker-compose.yml` or `Dockerfile`.
+## Environment Variables
+
+`.env.example` contains the safe template. Never commit the resulting `.env`
+file or real credentials.
+
+```ini
+DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:5432/DATABASE_NAME
+GROQ_API_KEY=
+GROQ_MODEL=
+FRONTEND_ORIGIN=http://localhost:5173
+VITE_API_BASE_URL=http://localhost:8000/api
+```
+
+For a managed PostgreSQL provider that requires TLS, append
+`?sslmode=require` to `DATABASE_URL`. `VITE_API_BASE_URL` is optional because
+the frontend defaults to `http://localhost:8000/api`; put it in
+`frontend/.env` when overriding the default.
+
+## Database Setup
+
+With PostgreSQL available and `DATABASE_URL` configured:
+
+```bash
+cd backend
+alembic upgrade head
+```
+
+The migration creates `complaints`, `ai_assessments`, and
+`complaint_audit_logs`. The application verifies connectivity through
+`GET /api/health`, which executes `SELECT 1` and does not call Groq.
+
+## Running Backend
+
+From the repository root, after activating `.venv`:
+
+```bash
+cd backend
+uvicorn app.main:app --reload
+```
+
+FastAPI is available at `http://localhost:8000`. Swagger documentation is at
+`http://localhost:8000/docs`.
+
+## Running Frontend
+
+In a second terminal:
+
+```bash
+cd frontend
+npm run dev
+```
+
+Vite serves the workspace at `http://localhost:5173`.
+
+## Sample Workflow
+
+Start with an empty workspace and send:
+
+```text
+ABC Pharma reported brown discoloration on approximately 120 Metformin 500 mg
+tablets from batch MT24003. No adverse events have been reported.
+```
+
+Then try these AI-only edits:
+
+```text
+Actually change the batch number to MT24004 and quantity affected to 500.
+Also one patient experienced severe vomiting after taking the product.
+Remove the expiry date because the customer did not provide it.
+```
+
+The form remains read-only, unrelated fields are preserved, risk is reassessed
+after each request, and audit events remain local until Save Complaint is
+clicked. The primary fictional document demo is
+`sample_documents/metformin_discoloration.pdf`; the other sample formats are
+also available in that directory.
+
+## API Endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET | `/api/health` | Check API and database connectivity |
+| POST | `/api/agent/message` | Log a complaint or edit supplied in-memory state |
+| POST | `/api/agent/document` | Parse and extract an uploaded complaint document |
+| POST | `/api/ai/log-complaint` | Backward-compatible log workflow endpoint |
+| POST | `/api/complaints` | Explicitly save a complaint and related records |
+| GET | `/api/complaints` | List saved complaints |
+| GET | `/api/complaints/{id}` | Retrieve a complaint and latest assessment |
+| GET | `/api/complaints/{id}/audit` | Retrieve chronological audit events |
+| GET | `/api/complaints/{id}/assessments` | Retrieve assessment snapshots |
+
+AI endpoints return an unsaved `ComplaintAgentResponse` containing
+`complaint`, `risk_assessment`, `assistant_message`, `changed_fields`, and
+optional `ai_insights`. AI endpoints never write to PostgreSQL.
+
+## Testing
+
+Backend tests use disposable SQLite databases for repository and transaction
+coverage, while the production configuration remains PostgreSQL:
+
+```bash
+cd backend
+../.venv/bin/pytest -q
+```
+
+Frontend tests and a production build:
+
+```bash
+cd frontend
+npm test -- --run
+npm run build
+```
+
+The suite covers schemas, source grounding, negation, Groq failures, parser
+errors, LangGraph routing, patch preservation, persistence transactions,
+audit/history APIs, completeness, duplicate detection, optional insight
+failures, frontend read-only behavior, upload, save, reset, and error-state
+preservation.
+
+## Limitations
+
+- AI output is preliminary and requires QA review.
+- This is not a validated production GxP system.
+- There is no production OCR for scanned PDFs.
+- There are no electronic signatures, full RBAC, or regulatory approval
+  workflow.
+- CAPA output is a recommendation panel, not a full CAPA management system.
+- Sample documents and data are fictional and intended for assignment/demo use.
+
+## AI Safety / QA Review Notes
+
+- Factual fields are source-grounded and unknown values remain `null`.
+- Structured Groq responses are validated with Pydantic before use.
+- Deterministic risk signals supplement, but do not replace, AI assessment.
+- Every complaint creation or AI edit runs risk reassessment.
+- Potential investigation areas are hypotheses; the UI does not present a
+  confirmed root cause.
+- CAPA sections are labeled `AI recommendation — QA review required`.
+- Possible duplicate detection is explainable and intentionally says
+  `Possible Duplicate`, never `Confirmed Duplicate`.
+- AI failures preserve the in-memory complaint; optional insight failures do
+  not invalidate the mandatory complaint/risk response.
+- The complaint form is intentionally read-only. Complaint data can only be
+  created or modified using the AI Copilot or document extraction workflow,
+  matching the assignment requirement.

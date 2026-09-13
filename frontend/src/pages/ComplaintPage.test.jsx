@@ -9,6 +9,7 @@ import complaintReducer, {
   addPendingAuditEvent,
   setComplaint,
   setRiskAssessment,
+  setSaveStatus,
 } from '../store/complaintSlice'
 import copilotReducer from '../store/copilotSlice'
 
@@ -50,11 +51,17 @@ const riskAssessment = {
   product_replacement_recommended: false,
 }
 
-const responseFor = (complaint, changedFields = [], assessment = riskAssessment) => ({
+const responseFor = (
+  complaint,
+  changedFields = [],
+  assessment = riskAssessment,
+  aiInsights = null,
+) => ({
   complaint: { ...EMPTY_COMPLAINT, ...complaint },
   risk_assessment: assessment,
   assistant_message: 'The complaint record has been updated.',
   changed_fields: changedFields,
+  ai_insights: aiInsights,
 })
 
 const makeStore = () => configureStore({
@@ -112,6 +119,7 @@ describe('ComplaintPage AI workflow', () => {
     fields.forEach((label) => {
       expect(screen.getByLabelText(label)).toHaveAttribute('readonly')
     })
+    expect(screen.getByRole('button', { name: 'Save Complaint' })).toBeDisabled()
   })
 
   it('populates the read-only form and risk card from an AI log response', async () => {
@@ -166,7 +174,22 @@ describe('ComplaintPage AI workflow', () => {
   })
 
   it('populates the same form from a document upload', async () => {
-    uploadComplaintDocument.mockResolvedValueOnce(responseFor(initialComplaint, ['product_name']))
+    uploadComplaintDocument.mockResolvedValueOnce(responseFor(
+      initialComplaint,
+      ['product_name'],
+      riskAssessment,
+      {
+        completeness: {
+          score: 82,
+          status: 'MOSTLY_COMPLETE',
+          missing_fields: ['expiry_date'],
+          missing_critical_fields: [],
+          message: 'Some intake details are still missing.',
+        },
+        duplicates: { possible_duplicate: false, matches: [] },
+        summary: { summary: 'A factual document-based complaint summary.' },
+      },
+    ))
     const { container, store } = renderPage()
     const file = new File(['complaint text'], 'complaint.txt', { type: 'text/plain' })
 
@@ -185,6 +208,43 @@ describe('ComplaintPage AI workflow', () => {
         }),
       ]),
     )
+    expect(screen.getByText('A factual document-based complaint summary.')).toBeInTheDocument()
+  })
+
+  it('refreshes AI insights when a natural-language edit returns a new response', async () => {
+    const firstInsights = {
+      completeness: {
+        score: 70,
+        status: 'INCOMPLETE',
+        missing_fields: ['expiry_date'],
+        missing_critical_fields: [],
+        message: 'Collect more facts.',
+      },
+      duplicates: { possible_duplicate: false, matches: [] },
+      summary: { summary: 'Initial complaint summary.' },
+    }
+    const secondInsights = {
+      ...firstInsights,
+      completeness: { ...firstInsights.completeness, score: 77, status: 'MOSTLY_COMPLETE' },
+      summary: { summary: 'Updated complaint summary after the edit.' },
+    }
+    sendAgentMessage
+      .mockResolvedValueOnce(responseFor(initialComplaint, [], riskAssessment, firstInsights))
+      .mockResolvedValueOnce(responseFor(
+        { ...initialComplaint, quantity_affected: '500' },
+        ['quantity_affected'],
+        riskAssessment,
+        secondInsights,
+      ))
+    renderPage()
+
+    sendText('Log the complaint for ABC Pharma.')
+    await waitFor(() => expect(screen.getByText('Initial complaint summary.')).toBeInTheDocument())
+    sendText('Actually change the quantity to 500.')
+
+    await waitFor(() => expect(screen.getByText('Updated complaint summary after the edit.')).toBeInTheDocument())
+    expect(screen.queryByText('Initial complaint summary.')).not.toBeInTheDocument()
+    expect(screen.getByText('77%')).toBeInTheDocument()
   })
 
   it('tracks actual AI edits and risk changes in the unsaved local history', async () => {
@@ -319,5 +379,28 @@ describe('ComplaintPage AI workflow', () => {
     expect(saveComplaint).toHaveBeenCalledTimes(1)
     resolveSave({ complaint_number: 'CMP-2026-0008' })
     await waitFor(() => expect(screen.getByText('Complaint saved as CMP-2026-0008')).toBeInTheDocument())
+  })
+
+  it('keeps Reset disabled while a save is pending', async () => {
+    const store = makeStore()
+    store.dispatch(setComplaint(initialComplaint))
+    store.dispatch(setRiskAssessment(riskAssessment))
+    store.dispatch(setSaveStatus('idle'))
+    let resolveSave
+    saveComplaint.mockReturnValueOnce(new Promise((resolve) => {
+      resolveSave = resolve
+    }))
+    renderPage(store)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Complaint' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Saving complaint…' })).toBeDisabled()
+    })
+    expect(screen.getByRole('button', { name: 'Reset' })).toBeDisabled()
+    expect(screen.getByLabelText('Product Name')).toHaveValue('Metformin')
+
+    resolveSave({ complaint_number: 'CMP-2026-0009' })
+    await waitFor(() => expect(screen.getByText('Complaint saved as CMP-2026-0009')).toBeInTheDocument())
   })
 })
