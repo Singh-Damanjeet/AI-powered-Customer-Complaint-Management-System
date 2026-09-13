@@ -2,7 +2,7 @@
 
 Foundation for an AI-powered customer complaint management system for pharmaceutical API/FDF manufacturing.
 
-This repository currently contains the no-Docker Phase 0 foundation, Phase 1 domain contracts, Phase 2 persistence/API layer, Phase 3 Groq structured-output service, the Phase 4 in-memory log complaint/risk-assessment workflow, the Phase 5 LangGraph orchestration layer, the Phase 6 in-memory natural-language edit workflow, and the Phase 7 document intake workflow. Frontend AI integration is not implemented yet.
+This repository contains the no-Docker Phase 0 foundation, Phase 1 domain contracts, Phase 2 persistence/API layer, Phase 3 Groq structured-output service, the Phase 4 in-memory log complaint/risk-assessment workflow, the Phase 5 LangGraph orchestration layer, the Phase 6 in-memory natural-language edit workflow, the Phase 7 document intake workflow, and the Phase 8 Redux-powered frontend AI workspace.
 
 ## Architecture
 
@@ -60,6 +60,9 @@ pharma-complaint-ai/
    ```
 
    The frontend is available at `http://localhost:5173`.
+
+   The frontend defaults to `http://localhost:8000/api` for the backend. To
+   override it, set `VITE_API_BASE_URL` in `frontend/.env`.
 
 ## Foundation endpoint
 
@@ -152,7 +155,8 @@ The initial assessment uses `Unknown` classifications and `not_assessed` as its 
 - LangGraph document path with validation, mandatory risk assessment, and the existing response contract.
 - `POST /api/agent/document` multipart upload endpoint.
 - Fictional sample documents under `sample_documents/`.
-- No automatic PostgreSQL persistence, OCR, frontend upload UI, or document-to-edit-specific workflow.
+- No automatic PostgreSQL persistence or OCR; the frontend upload and
+  document-to-edit workflow is implemented in Phase 8.
 
 Document intake is available at:
 
@@ -162,5 +166,19 @@ curl -X POST http://localhost:8000/api/agent/document \
 ```
 
 The returned complaint can be sent back to `POST /api/agent/message` for a natural-language edit. Uploaded documents are parsed and assessed in memory; saving remains a separate database operation.
+
+## Phase 8 scope
+
+- Redux Toolkit complaint and AI Copilot slices are the authoritative frontend
+  state.
+- Complaint facts are displayed in a read-only record; users change them only
+  through natural-language Copilot messages or document upload.
+- PDF, DOCX, TXT, and EML uploads call `POST /api/agent/document` and share the
+  same complaint state as chat-driven logging and editing.
+- AI responses replace the complaint and risk assessment in Redux while
+  highlighting the returned `changed_fields`.
+- Saving is explicit through `POST /api/complaints`; AI interactions never
+  persist automatically.
+- Frontend unit/component tests are available with `npm test`.
 
 Docker is not required or included in this repository. There is no `docker-compose.yml` or `Dockerfile`.

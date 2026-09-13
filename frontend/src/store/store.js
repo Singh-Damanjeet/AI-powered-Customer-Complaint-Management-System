@@ -1,6 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit'
 
-// Feature slices will be registered here in later phases.
+import complaintReducer from './complaintSlice'
+import copilotReducer from './copilotSlice'
+
 export const store = configureStore({
-  reducer: {},
+  reducer: {
+    complaint: complaintReducer,
+    copilot: copilotReducer,
+  },
 })
