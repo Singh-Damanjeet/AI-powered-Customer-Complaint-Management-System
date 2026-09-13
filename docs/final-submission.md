@@ -7,19 +7,19 @@ credentials or private provider URLs that are not intended for evaluators.
 
 GitHub Repository:
 
-[ADD URL]
+<ADD FINAL GITHUB URL>
 
 Working Demo Video:
 
-[ADD URL]
+<ADD FINAL VIDEO URL>
 
-Technical Code Walkthrough Video:
+Technical Code Walkthrough:
 
-[ADD URL]
+<ADD FINAL VIDEO URL>
 
-Live Demo:
+Live Application:
 
-[OPTIONAL URL]
+<!-- Optional: replace this comment with <ADD URL> only if deployed; otherwise leave blank. -->
 
 ## Project Name
 
@@ -55,3 +55,6 @@ React, Redux Toolkit, FastAPI, LangGraph, Groq, PostgreSQL
 - Code file map: `docs/recording/code-file-map.md`
 - Requirement mapping: `docs/requirement-mapping.md`
 - Release notes: `docs/release-notes.md`
+- Final release summary: `docs/final-release-summary.md`
+- Final recording checklist: `docs/recording/final-recording-checklist.md`
+- Submission form checklist: `docs/submission-form-checklist.md`
