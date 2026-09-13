@@ -10,3 +10,4 @@ class HealthResponse(BaseModel):
 
     status: Literal["ok"]
     database: Literal["connected"]
+    version: str

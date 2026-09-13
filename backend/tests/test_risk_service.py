@@ -6,7 +6,7 @@ import pytest
 from app.schemas.complaint import ComplaintData, Priority, RiskAssessment, Severity
 from app.schemas.risk import RiskSignals
 from app.services.ai_errors import AIResponseValidationError
-from app.services.groq_service import GroqProviderError, GroqResponseError
+from app.services.groq_service import GroqProviderError
 from app.services.risk_service import RiskService
 
 

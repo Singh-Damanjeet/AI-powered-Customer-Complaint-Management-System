@@ -1,7 +1,17 @@
 import axios from 'axios'
 
+export function normalizeApiBaseUrl(value) {
+  const trimmedValue = typeof value === 'string' ? value.trim().replace(/\/+$/, '') : ''
+  if (!trimmedValue) return '/api'
+  return trimmedValue.endsWith('/api') ? trimmedValue : `${trimmedValue}/api`
+}
+
+const configuredApiBaseUrl = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL)
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
+  // A relative fallback keeps same-origin deployments working. The normalizer
+  // also accepts either a backend origin or an origin that already ends in /api.
+  baseURL: configuredApiBaseUrl,
   headers: {
     Accept: 'application/json',
   },

@@ -61,6 +61,7 @@ __all__ = [
     "CAPAService",
     "CAPARecommendationService",
     "CapaService",
+    "CorruptDocumentError",
     "DocumentComplaintService",
     "DocumentParserConfigurationError",
     "DocumentParserError",

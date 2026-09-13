@@ -6,18 +6,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.ai import agent_router, router as ai_router
 from app.api.complaints import router as complaints_router
 from app.api.health import router as health_router
-from app.config import get_settings
+from app.config import get_settings, parse_frontend_origins
 
 settings = get_settings()
 
 app = FastAPI(
     title="Pharma Complaint AI API",
-    version="0.1.0",
+    version=settings.app_version,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_origin],
+    allow_origins=parse_frontend_origins(settings.frontend_origin),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

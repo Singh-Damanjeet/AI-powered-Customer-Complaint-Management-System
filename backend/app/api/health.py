@@ -3,6 +3,7 @@
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.config import get_settings
 from app.database.session import check_database_connection
 from app.schemas.health import HealthResponse
 
@@ -21,4 +22,8 @@ def health_check() -> HealthResponse:
             detail="Database connection unavailable.",
         ) from exc
 
-    return HealthResponse(status="ok", database="connected")
+    return HealthResponse(
+        status="ok",
+        database="connected",
+        version=get_settings().app_version,
+    )

@@ -17,15 +17,54 @@ is read-only. Complaint facts can only be created or modified through the AI
 Copilot or document extraction workflow. A user must explicitly click Save
 Complaint before anything is persisted.
 
-The final workflow demonstrates:
+## Core Capabilities
 
 - Log Complaint Tool for natural-language complaint intake.
 - Edit Complaint Tool for sparse, source-grounded natural-language updates.
 - Document Extraction Tool for PDF, DOCX, TXT, and EML intake.
 - Preliminary AI risk assessment with mandatory QA review.
+- Read-only AI-controlled complaint form with explicit user save control.
+- Persisted complaint history, assessment snapshots, and audit trail.
+
+## Optional AI Features
+
 - Completeness scoring and explainable possible-duplicate detection.
 - Complaint summary, potential investigation areas, and proposed CAPA actions.
-- Explicit persistence, AI assessment snapshots, and an audit timeline.
+
+## Demo Flow
+
+1. Enter the complaint narrative in the AI Copilot.
+2. Let AI populate the read-only complaint form.
+3. Review the preliminary AI risk assessment.
+4. Modify selected fields using natural language.
+5. Upload a PDF or email document and review the extracted complaint.
+6. Review completeness, duplicate, summary, investigation, and CAPA insights.
+7. Explicitly save the complaint and review its audit history.
+
+The exact prompts and timed recording sequence are in
+`docs/recording/demo-prompts.md` and
+`docs/recording/demo-video-script.md`.
+
+## Design Decisions
+
+- Patch-based editing preserves unrelated complaint values when an edit omits
+  them.
+- Structured LLM outputs are validated with typed Pydantic contracts before
+  entering application state.
+- LangGraph makes the log, edit, document, validation, risk, insights, and
+  response steps explicit.
+- Deterministic risk signals provide guardrails while the LLM supplies
+  contextual preliminary reasoning.
+- Risk classifications, investigation areas, and CAPA actions are explicitly
+  subject to human QA review.
+
+## Evaluator & Submission
+
+- [Evaluator quickstart](docs/evaluator-quickstart.md)
+- [Final handoff](docs/handoff.md)
+- [Final submission template](docs/final-submission.md)
+- [Requirement mapping](docs/requirement-mapping.md)
+- [Working demo recording package](docs/recording/)
 
 ## Assignment Requirements
 
@@ -141,7 +180,7 @@ for log, edit, and document operations.
 - PyMuPDF, python-docx, and Python standard-library email parsing
 - Google Inter font
 
-## Setup
+## Quick Start
 
 Prerequisites:
 
@@ -158,38 +197,54 @@ python -m pip install --upgrade pip
 pip install -r backend/requirements.txt
 ```
 
-Create the environment file and fill in the database and Groq settings:
+Create the environment files and fill in the database and Groq settings in the
+root `.env`:
 
 ```bash
 cp .env.example .env
+cp frontend/.env.example frontend/.env
 ```
 
-Install frontend dependencies in a second terminal:
+Run the backend in one terminal:
+
+```bash
+source .venv/bin/activate
+cd backend
+alembic upgrade head
+uvicorn app.main:app --reload
+```
+
+Run the frontend in a second terminal:
 
 ```bash
 cd frontend
 npm install
+npm run dev
 ```
 
 No Docker configuration is required or included.
 
 ## Environment Variables
 
-`.env.example` contains the safe template. Never commit the resulting `.env`
-file or real credentials.
+`.env.example` contains the backend/database template and
+`frontend/.env.example` contains the Vite API URL template. Never commit either
+resulting `.env` file or real credentials.
 
 ```ini
 DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:5432/DATABASE_NAME
 GROQ_API_KEY=
 GROQ_MODEL=
 FRONTEND_ORIGIN=http://localhost:5173
-VITE_API_BASE_URL=http://localhost:8000/api
+VITE_API_BASE_URL=http://localhost:8000
+APP_VERSION=1.0.0
 ```
 
 For a managed PostgreSQL provider that requires TLS, append
-`?sslmode=require` to `DATABASE_URL`. `VITE_API_BASE_URL` is optional because
-the frontend defaults to `http://localhost:8000/api`; put it in
-`frontend/.env` when overriding the default.
+`?sslmode=require` to `DATABASE_URL`. `VITE_API_BASE_URL` should point to the
+deployed backend origin when frontend and backend are hosted separately; the
+frontend client appends `/api` and also accepts a value that already ends in
+`/api`. A same-origin deployment can omit it and use the frontend's `/api`
+fallback.
 
 ## Database Setup
 
@@ -203,6 +258,12 @@ alembic upgrade head
 The migration creates `complaints`, `ai_assessments`, and
 `complaint_audit_logs`. The application verifies connectivity through
 `GET /api/health`, which executes `SELECT 1` and does not call Groq.
+The health response also exposes the configured release version without
+returning any secret values:
+
+```json
+{"status":"ok","database":"connected","version":"1.0.0"}
+```
 
 ## Running Backend
 
@@ -227,6 +288,51 @@ npm run dev
 
 Vite serves the workspace at `http://localhost:5173`.
 
+## Deployment
+
+The application is provider-neutral and does not require Docker. Host the
+frontend as a static Vite site and the backend on a Python web service, using a
+managed PostgreSQL provider for the database.
+
+Frontend build settings:
+
+```bash
+cd frontend
+npm ci
+npm run build
+```
+
+Publish `frontend/dist` and set `VITE_API_BASE_URL` to the deployed backend API
+base URL, for example `https://api.example.com/api`. Do not place that value in
+source code.
+
+Backend settings and start command:
+
+```bash
+cd backend
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}"
+```
+
+Set these backend environment variables in the hosting provider:
+
+```ini
+DATABASE_URL=postgresql+psycopg://<managed-user>:<managed-password>@<managed-host>/<database>
+GROQ_API_KEY=<provider-secret>
+GROQ_MODEL=<configured-model>
+FRONTEND_ORIGIN=https://<deployed-frontend-host>
+```
+
+`FRONTEND_ORIGIN` accepts a comma-separated list when more than one deployed
+frontend origin is required. The deployment health check is
+`GET /api/health`; it verifies PostgreSQL with `SELECT 1` and never calls Groq.
+Document uploads are parsed from request bytes and do not require a persistent
+local filesystem. No remote deployment or Git push is performed by this
+repository phase.
+
+No authentication is required for this assignment demo.
+
 ## Sample Workflow
 
 Start with an empty workspace and send:
@@ -249,6 +355,12 @@ after each request, and audit events remain local until Save Complaint is
 clicked. The primary fictional document demo is
 `sample_documents/metformin_discoloration.pdf`; the other sample formats are
 also available in that directory.
+
+For duplicate detection, save the first Metformin complaint, reset the workspace,
+and submit a second complaint for the same product and batch with slightly
+different wording. The result is a `Possible Duplicate` review cue. Reset is
+the documented clean-demo action; there is no database-reset button and no
+automatic seed script.
 
 ## API Endpoints
 
@@ -284,6 +396,15 @@ Frontend tests and a production build:
 cd frontend
 npm test -- --run
 npm run build
+npm run lint
+```
+
+Backend lint uses the optional `backend/requirements-dev.txt` check tools:
+
+```bash
+cd backend
+../.venv/bin/pip install -r requirements-dev.txt
+../.venv/bin/ruff check app tests
 ```
 
 The suite covers schemas, source grounding, negation, Groq failures, parser

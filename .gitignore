@@ -5,10 +5,12 @@
 
 # Python
 __pycache__/
+*.pyc
 *.py[cod]
 *.pyo
 .venv/
 venv/
+.pytest_cache/
 backend/.pytest_cache/
 backend/.mypy_cache/
 backend/.ruff_cache/
@@ -19,11 +21,15 @@ coverage/
 
 # Node / Vite
 node_modules/
+dist/
 frontend/dist/
 frontend/.vite/
 npm-debug.log*
 
 # Local database and editor files
+*.db
+*.dump
+*.sqlite
 *.sqlite3
 .DS_Store
 *.log

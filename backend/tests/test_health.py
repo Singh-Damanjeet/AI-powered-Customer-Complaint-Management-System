@@ -25,7 +25,23 @@ def test_health_endpoint_returns_ok() -> None:
     response = client.get("/api/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "database": "connected"}
+    assert response.json() == {
+        "status": "ok",
+        "database": "connected",
+        "version": "1.0.0",
+    }
+
+
+def test_health_endpoint_uses_configured_release_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("APP_VERSION", "1.0.0-rc.1")
+    get_settings.cache_clear()
+
+    response = client.get("/api/health")
+
+    assert response.status_code == 200
+    assert response.json()["version"] == "1.0.0-rc.1"
 
 
 def test_health_endpoint_allows_configured_frontend_origin() -> None:
